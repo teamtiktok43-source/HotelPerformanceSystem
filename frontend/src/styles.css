@@ -62,3 +62,14 @@
   .print-friendly { break-inside:auto; page-break-inside:auto; }
   .report-section-title { margin-bottom:5px; }
 }
+
+.mini-danger { color:#b42318; border-color:#e7b9b4; }
+.modal-backdrop { position:fixed; inset:0; background:rgba(15,35,55,.45); display:grid; place-items:center; padding:20px; z-index:1000; }
+.modal-card { width:min(760px,100%); max-height:90vh; overflow:auto; background:#fff; border:1px solid #d8e0e8; border-radius:18px; padding:20px; box-shadow:0 24px 70px rgba(0,0,0,.25); }
+.modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.modal-head h3 { margin:0; color:#12385f; }
+.modal-head p { margin:4px 0 0; color:#6b7280; font-size:13px; }
+.modal-close { width:38px; height:38px; border:1px solid #d8e0e8; border-radius:10px; background:#fff; color:#64748b; font-size:24px; line-height:1; }
+.modal-grid { margin-bottom:0; }
+.modal-actions { display:flex; justify-content:flex-start; gap:8px; margin-top:18px; }
+@media(max-width:850px){ .modal-card{padding:16px}.modal-grid{grid-template-columns:1fr}.modal-grid .span-2{grid-column:auto} }

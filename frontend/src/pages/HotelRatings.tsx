@@ -13,10 +13,23 @@ export default function HotelRatings() {
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [rows, setRows] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const load = () => getRatings(year, month).then(setRows)
+  const load = async () => {
+    setLoading(true)
+    try {
+      const result = await getRatings(year, month)
+      setRows(Array.isArray(result) ? result : [])
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  useEffect(() => { load() }, [tick])
+  // Reload automatically whenever the selected month/year changes,
+  // and also when another device creates/updates data through realtime.
+  useEffect(() => {
+    load().catch(() => setRows([]))
+  }, [tick, year, month])
 
   return (
     <section className="page">
@@ -26,7 +39,7 @@ export default function HotelRatings() {
           <p>ملخص متوسط التقييم وعدد المراجعات والمشاعر حسب الشهر والسنة.</p>
         </div>
         <div className="actions no-print">
-          <button className="btn secondary" onClick={load}>تحديث البيانات</button>
+          <button className="btn secondary" onClick={() => load()} disabled={loading}>{loading ? 'جاري التحديث...' : 'تحديث البيانات'}</button>
           <PrintButton />
         </div>
       </div>
@@ -42,7 +55,7 @@ export default function HotelRatings() {
             ))}
           </select>
         </label>
-        <button className="btn primary" onClick={load}>عرض التقرير</button>
+        <button className="btn primary" onClick={() => load()} disabled={loading}>عرض التقرير</button>
       </div>
 
       <div className="panel print-friendly">

@@ -36,6 +36,13 @@ class BookingCreate(BaseModel):
     paid_bookings: int = Field(ge=0)
     employee_id: int | None = None
 
+class BookingUpdate(BaseModel):
+    hotel_id: int | None = None
+    booking_date: date | None = None
+    total_bookings: int | None = Field(default=None, ge=0)
+    paid_bookings: int | None = Field(default=None, ge=0)
+    employee_id: int | None = None
+
 class RevenueCreate(BaseModel):
     booking_number: str
     hotel_id: int
@@ -43,6 +50,15 @@ class RevenueCreate(BaseModel):
     revenue_date: date
     actual_price: Decimal = Field(ge=0)
     commissionable_amount: Decimal = Field(ge=0)
+    employee_id: int | None = None
+
+class RevenueUpdate(BaseModel):
+    booking_number: str | None = None
+    hotel_id: int | None = None
+    platform: str | None = None
+    revenue_date: date | None = None
+    actual_price: Decimal | None = Field(default=None, ge=0)
+    commissionable_amount: Decimal | None = Field(default=None, ge=0)
     employee_id: int | None = None
 
 class ReviewCreate(BaseModel):
@@ -53,6 +69,16 @@ class ReviewCreate(BaseModel):
     sentiment: str
     review_date: date
     proposed_action: str
+    employee_id: int | None = None
+
+class ReviewUpdate(BaseModel):
+    booking_number: str | None = None
+    hotel_id: int | None = None
+    rating: Decimal | None = Field(default=None, ge=0, le=10)
+    comment: str | None = None
+    sentiment: str | None = None
+    review_date: date | None = None
+    proposed_action: str | None = None
     employee_id: int | None = None
 
 class ReviewDecision(BaseModel):

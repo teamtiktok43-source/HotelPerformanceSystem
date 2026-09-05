@@ -20,6 +20,12 @@ export const updateHotel=(id:number,b:any)=>apiFetch<any>(`/api/hotels/${id}`,{m
 export const createEmployee=(b:any)=>apiFetch<any>('/api/employees',{method:'POST',body:JSON.stringify(b)});
 export const updateEmployee=(id:number,b:any)=>apiFetch<any>(`/api/employees/${id}`,{method:'PATCH',body:JSON.stringify(b)});
 export const getData=()=>apiFetch<any>('/api/data');
+export const updateBooking=(id:number,b:any)=>apiFetch<any>(`/api/bookings/${id}`,{method:'PATCH',body:JSON.stringify(b)});
+export const deleteBooking=(id:number)=>apiFetch<any>(`/api/bookings/${id}`,{method:'DELETE'});
+export const updateRevenue=(id:number,b:any)=>apiFetch<any>(`/api/revenue/${id}`,{method:'PATCH',body:JSON.stringify(b)});
+export const deleteRevenue=(id:number)=>apiFetch<any>(`/api/revenue/${id}`,{method:'DELETE'});
+export const updateReview=(id:number,b:any)=>apiFetch<any>(`/api/reviews/${id}`,{method:'PATCH',body:JSON.stringify(b)});
+export const deleteReview=(id:number)=>apiFetch<any>(`/api/reviews/${id}`,{method:'DELETE'});
 export const saveAuth=(u:User,t:string)=>{localStorage.setItem('hps_token',t);localStorage.setItem('hps_user',JSON.stringify(u));};
 export const getAuthUser=():User|null=>{try{return JSON.parse(localStorage.getItem('hps_user')||'null')}catch{return null}};
 export const logout=()=>{localStorage.removeItem('hps_token');localStorage.removeItem('hps_user')};

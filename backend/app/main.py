@@ -7,8 +7,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
 from .models import Booking, Hotel, Revenue, Review, User
-from .schemas import (BookingCreate, EmployeeCreate, EmployeeUpdate, HotelCreate, HotelUpdate,
-                      LoginRequest, RevenueCreate, ReviewCreate, ReviewDecision)
+from .schemas import (BookingCreate, BookingUpdate, EmployeeCreate, EmployeeUpdate, HotelCreate, HotelUpdate,
+                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate)
 from .auth import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from .seed import seed_defaults
 from .websocket import manager
@@ -161,6 +161,45 @@ def list_bookings(start: date | None = None, end: date | None = None, hotel_id: 
     if employee_id: q = q.filter(Booking.employee_id == employee_id)
     return [booking_to_dict(b) for b in q.order_by(Booking.booking_date.desc(), Booking.id.desc()).all()]
 
+@app.patch("/api/bookings/{booking_id}")
+async def update_booking(booking_id: int, payload: BookingUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Admin or manager required")
+    b = db.get(Booking, booking_id)
+    if not b:
+        raise HTTPException(404, "Booking not found")
+    hotel_id = payload.hotel_id if payload.hotel_id is not None else b.hotel_id
+    hotel = db.get(Hotel, hotel_id)
+    if not hotel or not hotel.active:
+        raise HTTPException(400, "Invalid hotel")
+    employee_id = payload.employee_id if payload.employee_id is not None else b.employee_id
+    if not db.get(User, employee_id):
+        raise HTTPException(400, "Invalid employee")
+    total = payload.total_bookings if payload.total_bookings is not None else b.total_bookings
+    paid = payload.paid_bookings if payload.paid_bookings is not None else b.paid_bookings
+    if paid > total:
+        raise HTTPException(400, "Paid bookings cannot exceed total bookings")
+    b.hotel_id = hotel_id
+    if payload.booking_date is not None: b.booking_date = payload.booking_date
+    b.total_bookings = total
+    b.paid_bookings = paid
+    b.cash_bookings = total - paid
+    b.employee_id = employee_id
+    db.commit(); db.refresh(b)
+    await manager.broadcast({"type": "booking.updated", "id": b.id})
+    return booking_to_dict(b)
+
+@app.delete("/api/bookings/{booking_id}")
+async def delete_booking(booking_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Admin or manager required")
+    b = db.get(Booking, booking_id)
+    if not b:
+        raise HTTPException(404, "Booking not found")
+    db.delete(b); db.commit()
+    await manager.broadcast({"type": "booking.deleted", "id": booking_id})
+    return {"deleted": True, "id": booking_id}
+
 @app.post("/api/revenue", status_code=201)
 async def create_revenue(payload: RevenueCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     hotel = db.get(Hotel, payload.hotel_id)
@@ -185,6 +224,48 @@ def list_revenue(start: date | None = None, end: date | None = None, hotel_id: i
     if employee_id: q = q.filter(Revenue.employee_id == employee_id)
     return [revenue_to_dict(r) for r in q.order_by(Revenue.revenue_date.desc(), Revenue.id.desc()).all()]
 
+@app.patch("/api/revenue/{revenue_id}")
+async def update_revenue(revenue_id: int, payload: RevenueUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Admin or manager required")
+    r = db.get(Revenue, revenue_id)
+    if not r:
+        raise HTTPException(404, "Revenue not found")
+    hotel_id = payload.hotel_id if payload.hotel_id is not None else r.hotel_id
+    hotel = db.get(Hotel, hotel_id)
+    if not hotel or not hotel.active:
+        raise HTTPException(400, "Invalid hotel")
+    employee_id = payload.employee_id if payload.employee_id is not None else r.employee_id
+    if not db.get(User, employee_id):
+        raise HTTPException(400, "Invalid employee")
+    if payload.booking_number is not None: r.booking_number = payload.booking_number.strip()
+    r.hotel_id = hotel_id
+    if payload.platform is not None: r.platform = payload.platform.strip()
+    if payload.revenue_date is not None: r.revenue_date = payload.revenue_date
+    if payload.actual_price is not None: r.actual_price = payload.actual_price
+    if payload.commissionable_amount is not None: r.commissionable_amount = payload.commissionable_amount
+    r.employee_id = employee_id
+    rate = Decimal(hotel.commission_rate or 0)
+    commissionable = Decimal(r.commissionable_amount or 0)
+    actual = Decimal(r.actual_price or 0)
+    r.commission_rate = rate
+    r.commission = (commissionable * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    r.net_revenue = (actual - r.commission).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    db.commit(); db.refresh(r)
+    await manager.broadcast({"type": "revenue.updated", "id": r.id})
+    return revenue_to_dict(r)
+
+@app.delete("/api/revenue/{revenue_id}")
+async def delete_revenue(revenue_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Admin or manager required")
+    r = db.get(Revenue, revenue_id)
+    if not r:
+        raise HTTPException(404, "Revenue not found")
+    db.delete(r); db.commit()
+    await manager.broadcast({"type": "revenue.deleted", "id": revenue_id})
+    return {"deleted": True, "id": revenue_id}
+
 @app.post("/api/reviews", status_code=201)
 async def create_review(payload: ReviewCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     hotel = db.get(Hotel, payload.hotel_id)
@@ -207,6 +288,43 @@ def list_reviews(start: date | None = None, end: date | None = None, hotel_id: i
     if status: q = q.filter(Review.status == status)
     if employee_id: q = q.filter(Review.employee_id == employee_id)
     return [review_to_dict(r) for r in q.order_by(Review.review_date.desc(), Review.id.desc()).all()]
+
+@app.patch("/api/reviews/{review_id}")
+async def update_review(review_id: int, payload: ReviewUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Admin or manager required")
+    rv = db.get(Review, review_id)
+    if not rv:
+        raise HTTPException(404, "Review not found")
+    hotel_id = payload.hotel_id if payload.hotel_id is not None else rv.hotel_id
+    hotel = db.get(Hotel, hotel_id)
+    if not hotel or not hotel.active:
+        raise HTTPException(400, "Invalid hotel")
+    employee_id = payload.employee_id if payload.employee_id is not None else rv.employee_id
+    if not db.get(User, employee_id):
+        raise HTTPException(400, "Invalid employee")
+    if payload.booking_number is not None: rv.booking_number = payload.booking_number.strip()
+    rv.hotel_id = hotel_id
+    if payload.rating is not None: rv.rating = payload.rating
+    if payload.comment is not None: rv.comment = payload.comment.strip()
+    if payload.sentiment is not None: rv.sentiment = payload.sentiment
+    if payload.review_date is not None: rv.review_date = payload.review_date
+    if payload.proposed_action is not None: rv.proposed_action = payload.proposed_action.strip()
+    rv.employee_id = employee_id
+    db.commit(); db.refresh(rv)
+    await manager.broadcast({"type": "review.updated", "id": rv.id})
+    return review_to_dict(rv)
+
+@app.delete("/api/reviews/{review_id}")
+async def delete_review(review_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Admin or manager required")
+    rv = db.get(Review, review_id)
+    if not rv:
+        raise HTTPException(404, "Review not found")
+    db.delete(rv); db.commit()
+    await manager.broadcast({"type": "review.deleted", "id": review_id})
+    return {"deleted": True, "id": review_id}
 
 @app.patch("/api/reviews/{review_id}/decision")
 async def decide_review(review_id: int, payload: ReviewDecision, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
