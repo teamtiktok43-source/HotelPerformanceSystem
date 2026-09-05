@@ -1,0 +1,1 @@
+export default function Toast({text,error=false,onClose}:{text:string;error?:boolean;onClose:()=>void}){return <div className={`toast ${error?'error':''}`}><span>{text}</span><button onClick={onClose}>×</button></div>}

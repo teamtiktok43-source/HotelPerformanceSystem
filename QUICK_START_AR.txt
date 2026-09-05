@@ -1,0 +1,26 @@
+تشغيل النظام بسرعة على Windows
+
+1) افتح PowerShell داخل مجلد المشروع.
+2) شغل مرة واحدة:
+   Set-ExecutionPolicy -Scope Process Bypass
+   .\setup_windows.ps1
+3) افتح Terminal ثانية وشغل:
+   .\run_backend.ps1
+4) افتح Terminal ثالثة وشغل:
+   .\run_frontend.ps1
+5) افتح:
+   http://localhost:5173
+
+بيانات الدخول الأولية:
+Mostafa / M123456m
+Mohamed / M1234m
+Mang / Mm123456
+
+للتشغيل على أجهزة أخرى داخل نفس الشبكة:
+- اعرف IP جهاز السيرفر من ipconfig.
+- شغل backend/frontend بالـ host 0.0.0.0.
+- افتح من الجهاز الآخر:
+  http://SERVER-IP:5173
+- تأكد من السماح في Windows Firewall للمنفذين 8000 و5173.
+
+ملاحظة: النظام يستخدم SQLite افتراضيًا كبداية. لبيئة إنتاج كبيرة، ضع PostgreSQL في DATABASE_URL واستخدم docker-compose.yml.

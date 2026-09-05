@@ -1,0 +1,1 @@
+import{useEffect,useState}from'react';import{connectRealtime}from'./api';export function useRealtime(){const[tick,setTick]=useState(0);useEffect(()=>connectRealtime(()=>setTick(x=>x+1)),[]);return tick}

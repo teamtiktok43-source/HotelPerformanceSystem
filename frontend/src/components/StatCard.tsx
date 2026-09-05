@@ -1,0 +1,1 @@
+export default function StatCard({title,value,unit}:{title:string,value:any,unit?:string}){return <div className="stat-card"><div className="stat-title">{title}</div><div className="stat-value">{Number(value||0).toLocaleString('en-US')}{unit?` ${unit}`:''}</div></div>}
