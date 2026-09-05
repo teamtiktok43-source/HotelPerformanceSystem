@@ -220,9 +220,14 @@ async def decide_review(review_id: int, payload: ReviewDecision, db: Session = D
     return review_to_dict(rv)
 
 @app.get("/api/ratings")
-def ratings(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    rows = db.query(Review.hotel_id, func.count(Review.id), func.avg(Review.rating)).group_by(Review.hotel_id).all()
-    sentiment_rows = db.query(Review.hotel_id, Review.sentiment, func.count(Review.id)).group_by(Review.hotel_id, Review.sentiment).all()
+def ratings(year: int | None = Query(default=None, ge=2000, le=2100), month: int | None = Query(default=None, ge=1, le=12), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    review_query = db.query(Review)
+    if year and month:
+        start = date(year, month, 1)
+        end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+        review_query = review_query.filter(Review.review_date >= start, Review.review_date < end)
+    rows = review_query.with_entities(Review.hotel_id, func.count(Review.id), func.avg(Review.rating)).group_by(Review.hotel_id).all()
+    sentiment_rows = review_query.with_entities(Review.hotel_id, Review.sentiment, func.count(Review.id)).group_by(Review.hotel_id, Review.sentiment).all()
     summary = {}
     for hotel_id, count, avg in rows:
         h = db.get(Hotel, hotel_id)
@@ -287,8 +292,8 @@ def monthly_report(month: int = Query(..., ge=1, le=12), year: int = Query(..., 
         hr = [r for r in revenues if r.hotel_id == h.id]
         hv = [v for v in reviews if v.hotel_id == h.id]
         rows.append({"hotel_name": h.name, "bookings": sum(b.total_bookings for b in hb), "paid": sum(b.paid_bookings for b in hb),
-                     "cash": sum(b.cash_bookings for b in hb), "actual_revenue": round(sum(float(r.actual_price or 0) for r in hr), 2),
-                     "commission": round(sum(float(r.commission or 0) for r in hr), 2), "net_revenue": round(sum(float(r.net_revenue or 0) for r in hr), 2),
+                     "cash": sum(b.cash_bookings for b in hb), "actual_revenue": round(sum(float(r.actual_price) if r.actual_price is not None else 0.0 for r in hr), 2),
+                     "commission": round(sum(float(r.commission) if r.commission is not None else 0.0 for r in hr), 2), "net_revenue": round(sum(float(r.net_revenue) if r.net_revenue is not None else 0.0 for r in hr), 2),
                      "review_count": len(hv), "average_rating": round(sum(float(v.rating or 0) for v in hv)/len(hv), 2) if hv else 0})
     rows.sort(key=lambda x: x["net_revenue"], reverse=True)
     return {"year": year, "month": month, "start": start.isoformat(), "end": end.isoformat(), "rows": rows,

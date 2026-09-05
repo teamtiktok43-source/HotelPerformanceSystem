@@ -9,7 +9,7 @@ export const getDashboard=(params:string)=>apiFetch<any>(`/api/dashboard?${param
 export const getBookings=(params='')=>apiFetch<any[]>(`/api/bookings?${params}`);
 export const getRevenue=(params='')=>apiFetch<any[]>(`/api/revenue?${params}`);
 export const getReviews=(params='')=>apiFetch<any[]>(`/api/reviews?${params}`);
-export const getRatings=()=>apiFetch<any[]>('/api/ratings');
+export const getRatings=(year?:number,month?:number)=>apiFetch<any[]>(`/api/ratings${year&&month?`?year=${year}&month=${month}`:''}`);
 export const getMonthly=(y:number,m:number)=>apiFetch<any>(`/api/monthly-report?year=${y}&month=${m}`);
 export const createBooking=(b:any)=>apiFetch<any>('/api/bookings',{method:'POST',body:JSON.stringify(b)});
 export const createRevenue=(b:any)=>apiFetch<any>('/api/revenue',{method:'POST',body:JSON.stringify(b)});
