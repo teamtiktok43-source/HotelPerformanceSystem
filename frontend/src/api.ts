@@ -19,6 +19,7 @@ export const createHotel=(b:any)=>apiFetch<any>('/api/hotels',{method:'POST',bod
 export const updateHotel=(id:number,b:any)=>apiFetch<any>(`/api/hotels/${id}`,{method:'PATCH',body:JSON.stringify(b)});
 export const createEmployee=(b:any)=>apiFetch<any>('/api/employees',{method:'POST',body:JSON.stringify(b)});
 export const updateEmployee=(id:number,b:any)=>apiFetch<any>(`/api/employees/${id}`,{method:'PATCH',body:JSON.stringify(b)});
+export const deleteEmployee=(id:number)=>apiFetch<any>(`/api/employees/${id}`,{method:'DELETE'});
 export const getData=()=>apiFetch<any>('/api/data');
 export const deleteDataMonth=(year:number,month:number)=>apiFetch<any>(`/api/data/month?year=${year}&month=${month}`,{method:'DELETE'});
 export const updateBooking=(id:number,b:any)=>apiFetch<any>(`/api/bookings/${id}`,{method:'PATCH',body:JSON.stringify(b)});

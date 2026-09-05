@@ -139,6 +139,27 @@ def update_employee(employee_id: int, payload: EmployeeUpdate, db: Session = Dep
     db.commit(); db.refresh(u)
     return user_to_dict(u)
 
+@app.delete("/api/employees/{employee_id}")
+def delete_employee(employee_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(403, "Admin required")
+    if employee_id == user.id:
+        raise HTTPException(400, "You cannot delete the account you are currently using")
+    u = db.get(User, employee_id)
+    if not u:
+        raise HTTPException(404, "Employee not found")
+
+    booking_count = db.query(Booking).filter(Booking.employee_id == employee_id).count()
+    revenue_count = db.query(Revenue).filter(Revenue.employee_id == employee_id).count()
+    review_count = db.query(Review).filter(Review.employee_id == employee_id).count()
+    manager_count = db.query(Review).filter(Review.manager_id == employee_id).count()
+    if booking_count or revenue_count or review_count or manager_count:
+        raise HTTPException(400, "Cannot delete employee with existing records. Disable the account instead.")
+
+    db.delete(u)
+    db.commit()
+    return {"deleted": True, "id": employee_id}
+
 @app.post("/api/bookings", status_code=201)
 async def create_booking(payload: BookingCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     hotel = db.get(Hotel, payload.hotel_id)
