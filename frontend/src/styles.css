@@ -21,3 +21,243 @@
   color: #fff;
   border-color: #0f6db2;
 }
+
+/* Dashboard / report refinements */
+.dashboard-filters {
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+}
+.dashboard-chart-grid,
+.monthly-report-grid,
+.revenue-report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.monthly-report-grid .panel:last-child {
+  grid-column: 1 / -1;
+}
+.chart-panel {
+  min-height: 360px;
+}
+.dashboard-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 22px;
+}
+.dashboard-highlight {
+  border: 1px solid #dfe7ef;
+  border-radius: 12px;
+  padding: 18px;
+  background: #f8fbfe;
+  text-align: center;
+}
+.dashboard-highlight span {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+}
+.dashboard-highlight strong {
+  display: block;
+  color: #133d66;
+  font-size: 28px;
+  margin-top: 8px;
+}
+.dashboard-note {
+  color: #64748b;
+  margin-top: 18px;
+  line-height: 1.8;
+}
+.report-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+.report-section-title h3 {
+  margin-bottom: 2px;
+}
+.report-section-title p {
+  margin: 0;
+  color: #6b7280;
+}
+.report-count {
+  white-space: nowrap;
+  border: 1px solid #dce5ee;
+  background: #f7fafc;
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: #174a78;
+  font-weight: 700;
+}
+.monthly-table tfoot th {
+  background: #eaf1f7;
+  color: #12385f;
+}
+.empty-state {
+  text-align: center;
+  color: #64748b;
+  padding: 20px !important;
+}
+
+@media(max-width:1200px) {
+  .dashboard-filters {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+}
+@media(max-width:850px) {
+  .dashboard-chart-grid,
+  .monthly-report-grid,
+  .revenue-report-grid {
+    grid-template-columns: 1fr;
+  }
+  .monthly-report-grid .panel:last-child {
+    grid-column: auto;
+  }
+  .dashboard-summary {
+    grid-template-columns: 1fr;
+  }
+}
+@media(max-width:580px) {
+  .dashboard-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Better print reports */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  body {
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .main {
+    padding: 0 !important;
+  }
+
+  .page {
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .stats {
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .stat-card {
+    min-height: 68px;
+    padding: 8px !important;
+  }
+
+  .stat-title {
+    font-size: 9px !important;
+  }
+
+  .stat-value {
+    font-size: 17px !important;
+    margin-top: 4px !important;
+  }
+
+  .dashboard-chart-grid,
+  .monthly-report-grid,
+  .revenue-report-grid,
+  .report-layout,
+  .chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .monthly-report-grid .panel:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .panel {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    padding: 8px !important;
+    margin-bottom: 8px !important;
+    break-inside: avoid;
+  }
+
+  .chart-panel {
+    min-height: 0 !important;
+  }
+
+  .chart-panel .recharts-responsive-container {
+    max-height: 250px !important;
+  }
+
+  table {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 8px !important;
+  }
+
+  th, td {
+    padding: 4px 5px !important;
+    white-space: normal !important;
+  }
+
+  .monthly-table {
+    font-size: 7.5px !important;
+  }
+
+  .report-section-title {
+    margin-bottom: 5px;
+  }
+
+  .report-section-title h3 {
+    font-size: 14px !important;
+  }
+
+  .report-section-title p,
+  .report-count {
+    font-size: 9px !important;
+  }
+
+  .revenue-report-grid > .panel:first-child {
+    order: 1;
+  }
+
+  .revenue-report-grid > .panel:last-child {
+    order: 2;
+  }
+
+  .dashboard-summary {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .dashboard-highlight {
+    padding: 9px;
+  }
+
+  .dashboard-highlight strong {
+    font-size: 20px;
+  }
+
+  .dashboard-note {
+    font-size: 9px;
+    margin-top: 8px;
+  }
+
+  .print-friendly {
+    break-inside: avoid;
+  }
+
+  .page {
+    break-before: auto;
+  }
+}

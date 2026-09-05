@@ -1,0 +1,15 @@
+تحديث Hotel Performance System - Home / Charts / Printing
+
+تم تعديل:
+1) Home: إضافة اختيار القسم (الكل / الحجوزات اليومية / الإيرادات اليومية / التقييمات / تقييمات الفنادق).
+2) Charts: إعادة تصميم الشارتات لتكون أوضح وبألوان مناسبة للبيانات.
+3) Monthly Report: ترتيب أفضل للـ KPIs + charts + الجدول التفصيلي + إجمالي.
+4) Daily Revenue: إعادة ترتيب العرض والطباعة وتحسين Chart صافي الإيراد.
+5) Print CSS: تحويل تقارير الطباعة إلى A4 Landscape مع توزيع أفضل وتقليل تقطيع العناصر.
+
+النشر بعد استبدال الملفات:
+git add .
+git commit -m "Improve dashboard charts and reports"
+git push
+
+Cloudflare Pages سيعمل Deploy تلقائيًا بعد الـ push.
