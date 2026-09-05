@@ -180,3 +180,7 @@
   .dashboard-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .monthly-visual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 }
+
+.month-delete-panel{border-color:#f0c7c3}.month-delete-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}.month-delete-head h3{margin:0 0 4px}.month-delete-head p{margin:0;color:#7a8796;font-size:13px}.danger-badge{background:#fff1f0;color:#b42318;border:1px solid #f0c7c3;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;white-space:nowrap}.month-delete-controls{display:grid;grid-template-columns:220px 220px auto;gap:14px;align-items:end;margin-top:14px}.month-delete-controls label{display:flex;flex-direction:column;gap:6px;font-weight:700;color:#334155}.month-delete-controls select{border:1px solid #cfd9e4;border-radius:9px;padding:10px;background:#fff;color:#111827}.btn.danger{background:#b42318;color:#fff}.btn.danger:hover{background:#941b12}.btn.danger:disabled{opacity:.65;cursor:not-allowed}
+@media(max-width:850px){.month-delete-controls{grid-template-columns:1fr 1fr}.month-delete-controls .btn{grid-column:span 2}.month-delete-head{flex-direction:column}}
+@media(max-width:580px){.month-delete-controls{grid-template-columns:1fr}.month-delete-controls .btn{grid-column:auto}}

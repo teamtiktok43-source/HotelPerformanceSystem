@@ -426,6 +426,38 @@ def all_data(db: Session = Depends(get_db), user: User = Depends(get_current_use
             "revenues": [revenue_to_dict(x) for x in db.query(Revenue).order_by(Revenue.id.desc()).all()],
             "reviews": [review_to_dict(x) for x in db.query(Review).order_by(Review.id.desc()).all()]}
 
+@app.delete("/api/data/month")
+async def delete_data_month(
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Admin or manager required")
+
+    start_date = date(year, month, 1)
+    end_date = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+
+    booking_count = db.query(Booking).filter(Booking.booking_date >= start_date, Booking.booking_date < end_date).delete(synchronize_session=False)
+    revenue_count = db.query(Revenue).filter(Revenue.revenue_date >= start_date, Revenue.revenue_date < end_date).delete(synchronize_session=False)
+    review_count = db.query(Review).filter(Review.review_date >= start_date, Review.review_date < end_date).delete(synchronize_session=False)
+    db.commit()
+
+    result = {
+        "deleted": True,
+        "year": year,
+        "month": month,
+        "counts": {
+            "bookings": booking_count,
+            "revenues": revenue_count,
+            "reviews": review_count,
+        },
+        "total": booking_count + revenue_count + review_count,
+    }
+    await manager.broadcast({"type": "data.month_deleted", **result})
+    return result
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     token = websocket.query_params.get("token")

@@ -3,6 +3,7 @@ import {
   deleteBooking,
   deleteRevenue,
   deleteReview,
+  deleteDataMonth,
   getData,
   getEmployees,
   getHotels,
@@ -26,6 +27,10 @@ export default function Data() {
   const [editing, setEditing] = useState<{ type: 'booking' | 'revenue' | 'review'; row: any } | null>(null)
   const [form, setForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
+  const today = new Date()
+  const [deleteMonthYear, setDeleteMonthYear] = useState(today.getFullYear())
+  const [deleteMonth, setDeleteMonth] = useState(today.getMonth() + 1)
+  const [deletingMonth, setDeletingMonth] = useState(false)
 
   const refresh = async () => {
     const result = await getData()
@@ -140,6 +145,35 @@ export default function Data() {
 
   const update = (key: string, value: any) => setForm((prev: any) => ({ ...prev, [key]: value }))
 
+  const deleteSelectedMonth = async () => {
+    if (!canManage || deletingMonth) return
+    const monthName = new Intl.DateTimeFormat('ar-EG', { month: 'long' }).format(new Date(deleteMonthYear, deleteMonth - 1, 1))
+    const confirmed = window.confirm(
+      `سيتم حذف كل بيانات ${monthName} ${deleteMonthYear} نهائيًا من النظام.\n\n` +
+      'سيتم حذف: الحجوزات + الإيرادات + التقييمات لهذا الشهر فقط.\n' +
+      'بيانات باقي الشهور لن تتأثر.\n\nهل أنت متأكد؟'
+    )
+    if (!confirmed) return
+
+    setDeletingMonth(true)
+    try {
+      const result = await deleteDataMonth(deleteMonthYear, deleteMonth)
+      const counts = result?.counts || {}
+      window.alert(
+        `تم حذف ${monthName} ${deleteMonthYear} بنجاح.\n\n` +
+        `الحجوزات: ${counts.bookings ?? 0}\n` +
+        `الإيرادات: ${counts.revenues ?? 0}\n` +
+        `التقييمات: ${counts.reviews ?? 0}\n` +
+        `الإجمالي: ${result?.total ?? 0}`
+      )
+      await refresh()
+    } catch (error: any) {
+      window.alert(error?.message || 'تعذر حذف بيانات الشهر')
+    } finally {
+      setDeletingMonth(false)
+    }
+  }
+
   return (
     <section className="page">
       <div className="page-head">
@@ -151,6 +185,35 @@ export default function Data() {
       </div>
 
       {!canManage && <div className="panel no-print inline-msg">العرض متاح لجميع المستخدمين، أما التعديل والحذف فمتاحان للمدير فقط.</div>}
+
+      {canManage && <div className="panel no-print month-delete-panel">
+        <div className="month-delete-head">
+          <div>
+            <h3>حذف بيانات شهر</h3>
+            <p>يحذف الحجوزات والإيرادات والتقييمات للشهر والسنة المحددين فقط.</p>
+          </div>
+          <span className="danger-badge">حذف نهائي</span>
+        </div>
+        <div className="month-delete-controls">
+          <label>السنة
+            <select value={deleteMonthYear} onChange={e => setDeleteMonthYear(Number(e.target.value))}>
+              {Array.from({ length: 15 }, (_, i) => today.getFullYear() - 10 + i).map(year => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </label>
+          <label>الشهر
+            <select value={deleteMonth} onChange={e => setDeleteMonth(Number(e.target.value))}>
+              {Array.from({ length: 12 }, (_, i) => {
+                const month = i + 1
+                const name = new Intl.DateTimeFormat('ar-EG', { month: 'long' }).format(new Date(2020, i, 1))
+                return <option key={month} value={month}>{name}</option>
+              })}
+            </select>
+          </label>
+          <button className="btn danger" onClick={deleteSelectedMonth} disabled={deletingMonth}>
+            {deletingMonth ? 'جاري الحذف...' : 'حذف بيانات الشهر'}
+          </button>
+        </div>
+      </div>}
 
       <div className="panel">
         <h3>الحجوزات ({d.bookings.length})</h3>
