@@ -124,12 +124,12 @@ export default function Home() {
 
       <div className="dashboard-chart-grid print-friendly">
         {(showRevenue || showBookings) && (
-          <div className="panel chart-panel">
+          <div className="panel chart-panel chart-panel-narrow">
             <h3>{showRevenue && !showBookings ? 'صافي الإيراد حسب الفندق' : 'أداء الفندق — الحجوزات وصافي الإيراد'}</h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={d.revenue_by_hotel.length ? d.revenue_by_hotel : DEFAULTS.revenue_by_hotel} margin={{ top: 12, right: 16, left: 8, bottom: 10 }}>
+            <ResponsiveContainer width="100%" height={225}>
+              <BarChart data={(d.revenue_by_hotel.length ? d.revenue_by_hotel : DEFAULTS.revenue_by_hotel).slice(0, 8)} margin={{ top: 8, right: 10, left: 2, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={55} />
+                <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-16} textAnchor="end" height={45} tickFormatter={(value: string) => value.length > 14 ? `${value.slice(0,14)}…` : value} />
                 <YAxis />
                 <Tooltip />
                 <Bar dataKey="value" name="صافي الإيراد" fill="#23698e" radius={[5, 5, 0, 0]} />
@@ -139,11 +139,11 @@ export default function Home() {
         )}
 
         {(showBookings || section === 'all') && (
-          <div className="panel chart-panel">
+          <div className="panel chart-panel chart-panel-narrow">
             <h3>مزيج المدفوع والكاش</h3>
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={225}>
               <PieChart>
-                <Pie data={d.paid_cash} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={88} innerRadius={42} label>
+                <Pie data={d.paid_cash} dataKey="value" nameKey="name" cx="50%" cy="48%" outerRadius={68} innerRadius={34} label>
                   {d.paid_cash.map((_: any, i: number) => <Cell key={i} fill={['#23698e', '#78a9c7'][i % 2]} />)}
                 </Pie>
                 <Tooltip />
@@ -154,10 +154,10 @@ export default function Home() {
         )}
 
         {(showReviews || showRatings || section === 'all') && (
-          <div className="panel chart-panel">
+          <div className="panel chart-panel chart-panel-narrow">
             <h3>اتجاه التقييمات</h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={sentimentData} margin={{ top: 12, right: 16, left: 8, bottom: 10 }}>
+            <ResponsiveContainer width="100%" height={225}>
+              <BarChart data={sentimentData} margin={{ top: 8, right: 10, left: 2, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis allowDecimals={false} />

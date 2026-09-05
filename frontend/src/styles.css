@@ -73,3 +73,49 @@
 .modal-grid { margin-bottom:0; }
 .modal-actions { display:flex; justify-content:flex-start; gap:8px; margin-top:18px; }
 @media(max-width:850px){ .modal-card{padding:16px}.modal-grid{grid-template-columns:1fr}.modal-grid .span-2{grid-column:auto} }
+
+
+/* Narrow, cleaner charts */
+.dashboard-chart-grid,
+.report-chart-grid {
+  justify-items: center;
+}
+.dashboard-chart-grid > .chart-panel,
+.report-chart-grid > .chart-panel {
+  width: 100%;
+}
+.chart-panel-narrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 255px;
+}
+.chart-panel-narrow h3 {
+  width: 100%;
+  text-align: right;
+  margin-bottom: 4px;
+}
+.chart-panel-narrow .recharts-responsive-container {
+  max-width: 390px;
+  width: 100% !important;
+}
+.report-chart-grid .chart-panel-narrow .recharts-responsive-container {
+  max-width: 470px;
+}
+@media(max-width:1200px){
+  .dashboard-chart-grid > .chart-panel,
+  .report-chart-grid > .chart-panel { max-width: 520px; }
+  .chart-panel-narrow .recharts-responsive-container,
+  .report-chart-grid .chart-panel-narrow .recharts-responsive-container { max-width: 440px; }
+}
+@media(max-width:850px){
+  .dashboard-chart-grid > .chart-panel,
+  .report-chart-grid > .chart-panel { max-width: 100%; }
+  .chart-panel-narrow .recharts-responsive-container,
+  .report-chart-grid .chart-panel-narrow .recharts-responsive-container { max-width: 100%; }
+}
+@media print {
+  .chart-panel-narrow { min-height: 235px; }
+  .chart-panel-narrow .recharts-responsive-container,
+  .report-chart-grid .chart-panel-narrow .recharts-responsive-container { max-width: 430px; }
+}
