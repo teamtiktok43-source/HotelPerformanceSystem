@@ -1,22 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { getDashboard, getHotels, Hotel } from '../api'
 import StatCard from '../components/StatCard'
 import PrintButton from '../components/PrintButton'
 import { useRealtime } from '../useRealtime'
 import { Link } from 'react-router-dom'
+import { DonutChart, HorizontalBars, ProgressList } from '../components/ReportCharts'
 
 const DEFAULTS = {
   kpis: {
@@ -122,51 +110,15 @@ export default function Home() {
         {visibleActions.map(([label, to, icon]) => <Link className="quick-card" to={to} key={to}><span>{icon}</span><b>فتح {label}</b></Link>)}
       </div>
 
-      <div className="dashboard-chart-grid print-friendly">
-        {(showRevenue || showBookings) && (
-          <div className="panel chart-panel chart-panel-narrow">
-            <h3>{showRevenue && !showBookings ? 'صافي الإيراد حسب الفندق' : 'أداء الفندق — الحجوزات وصافي الإيراد'}</h3>
-            <ResponsiveContainer width="100%" height={225}>
-              <BarChart data={(d.revenue_by_hotel.length ? d.revenue_by_hotel : DEFAULTS.revenue_by_hotel).slice(0, 8)} margin={{ top: 8, right: 10, left: 2, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-16} textAnchor="end" height={45} tickFormatter={(value: string) => value.length > 14 ? `${value.slice(0,14)}…` : value} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" name="صافي الإيراد" fill="#23698e" radius={[5, 5, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      <div className="dashboard-chart-grid print-friendly visual-chart-grid">
+        {(showBookings || showRevenue) && (
+          <>
+            {showBookings && <HorizontalBars title="الحجوزات حسب الفندق" data={(d.hotel_performance || []).map((r: any) => ({ name: r.hotel || '', value: safe(r.bookings) }))} maxItems={7} />}
+            {showRevenue && <HorizontalBars title="صافي الإيراد حسب الفندق" data={(d.revenue_by_hotel || []).map((r: any) => ({ name: r.name || '', value: safe(r.value) }))} maxItems={7} valueSuffix="" />}
+          </>
         )}
-
-        {(showBookings || section === 'all') && (
-          <div className="panel chart-panel chart-panel-narrow">
-            <h3>مزيج المدفوع والكاش</h3>
-            <ResponsiveContainer width="100%" height={225}>
-              <PieChart>
-                <Pie data={d.paid_cash} dataKey="value" nameKey="name" cx="50%" cy="48%" outerRadius={68} innerRadius={34} label>
-                  {d.paid_cash.map((_: any, i: number) => <Cell key={i} fill={['#23698e', '#78a9c7'][i % 2]} />)}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {(showReviews || showRatings || section === 'all') && (
-          <div className="panel chart-panel chart-panel-narrow">
-            <h3>اتجاه التقييمات</h3>
-            <ResponsiveContainer width="100%" height={225}>
-              <BarChart data={sentimentData} margin={{ top: 8, right: 10, left: 2, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="value" name="عدد التقييمات" fill="#3f7ea3" radius={[5, 5, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        {(showBookings || section === 'all') && <DonutChart title="مزيج المدفوع والكاش" paid={safe(d.kpis.paid_bookings)} cash={safe(d.kpis.cash_bookings)} />}
+        {(showReviews || showRatings || section === 'all') && <ProgressList title="اتجاه التقييمات" max={Math.max(1, ...sentimentData.map(x => safe(x.value)))} items={sentimentData.map(x => ({ name: x.name, value: safe(x.value) }))} />}
       </div>
 
       {showBookings && (

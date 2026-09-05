@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { getMonthly } from '../api'
 import Stat from '../components/StatCard'
 import Print from '../components/PrintButton'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { DonutChart, HorizontalBars, ProgressList } from '../components/ReportCharts'
 
 function monthName(m: number) {
   return new Intl.DateTimeFormat('ar-EG', { month: 'long' }).format(new Date(2024, m - 1, 1))
@@ -49,9 +49,11 @@ export default function MonthlyReport() {
         <Stat title="متوسط التقييم" value={totals.average_rating} />
       </div>
 
-      <div className="report-chart-grid print-friendly">
-        <div className="panel chart-panel chart-panel-narrow"><h3>أداء الفنادق — صافي الإيراد</h3><ResponsiveContainer width="100%" height={235}><BarChart data={rows.slice(0, 8)} margin={{ top: 8, right: 10, left: 2, bottom: 8 }}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="hotel_name" tick={{ fontSize: 9 }} interval={0} angle={-16} textAnchor="end" height={45} tickFormatter={(value: string) => value.length > 14 ? `${value.slice(0,14)}…` : value}/><YAxis/><Tooltip/><Bar dataKey="net_revenue" name="صافي الإيراد" fill="#23698e" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div>
-        <div className="panel chart-panel chart-panel-narrow"><h3>أداء الفنادق — الحجوزات</h3><ResponsiveContainer width="100%" height={235}><BarChart data={rows.slice(0, 8)} margin={{ top: 8, right: 10, left: 2, bottom: 8 }}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="hotel_name" tick={{ fontSize: 9 }} interval={0} angle={-16} textAnchor="end" height={45} tickFormatter={(value: string) => value.length > 14 ? `${value.slice(0,14)}…` : value}/><YAxis allowDecimals={false}/><Tooltip/><Bar dataKey="bookings" name="الحجوزات" fill="#4d91b6" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div>
+      <div className="report-chart-grid print-friendly visual-chart-grid monthly-visual-grid">
+        <HorizontalBars title="أداء الفنادق — الحجوزات" data={rows.map((r: any) => ({ name: r.hotel_name, value: num(r.bookings) }))} maxItems={7} />
+        <HorizontalBars title="أداء الفنادق — صافي الإيراد" data={rows.map((r: any) => ({ name: r.hotel_name, value: num(r.net_revenue) }))} maxItems={7} />
+        <DonutChart title="مزيج المدفوع والكاش" paid={totals.paid} cash={totals.cash} />
+        <ProgressList title="مؤشرات التقييم" max={100} items={[{ name: 'متوسط التقييم', value: totals.average_rating * 10 }, { name: 'عدد التقييمات', value: totals.reviews }]} formatter={(v) => `${Math.round(v)}${v === totals.reviews ? '' : '%'}`} />
       </div>
 
       <div className="panel print-friendly">

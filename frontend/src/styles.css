@@ -119,3 +119,64 @@
   .chart-panel-narrow .recharts-responsive-container,
   .report-chart-grid .chart-panel-narrow .recharts-responsive-container { max-width: 430px; }
 }
+
+/* Professional compact report charts inspired by the supplied references */
+.visual-chart-grid { align-items: stretch; }
+.visual-chart {
+  width: 100%;
+  max-width: 100%;
+  background: #fff;
+  border: 1px solid #dde5ee;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  min-height: 210px;
+  overflow: hidden;
+}
+.visual-chart-title {
+  color: #163f67;
+  font-weight: 900;
+  font-size: 16px;
+  margin-bottom: 12px;
+  text-align: right;
+}
+.bar-list { display: flex; flex-direction: column; gap: 9px; }
+.bar-row { display: grid; grid-template-columns: 150px minmax(90px, 1fr) 72px; gap: 10px; align-items: center; }
+.bar-label { font-size: 12px; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.bar-track { height: 12px; background: #e8f0f6; border-radius: 999px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, #276f9b, #4b9ac1); border-radius: inherit; min-width: 4px; }
+.bar-value { font-size: 12px; font-weight: 900; color: #173b61; text-align: left; }
+.chart-empty { color: #94a3b8; text-align: center; padding: 35px 0; font-size: 13px; }
+.donut-card { display: flex; flex-direction: column; align-items: center; }
+.donut-wrap { display: grid; place-items: center; flex: 1; }
+.donut { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; transform: rotate(-90deg); }
+.donut::before { content: ''; width: 86px; height: 86px; border-radius: 50%; background: #fff; position: absolute; }
+.donut-center { position: relative; transform: rotate(90deg); text-align: center; z-index: 1; }
+.donut-center strong { display: block; font-size: 24px; color: #163f67; }
+.donut-center span { display: block; font-size: 11px; color: #64748b; margin-top: 2px; }
+.donut-legend { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; font-size: 12px; color: #475569; margin-top: 8px; }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-left: 5px; }
+.legend-dot.paid { background: #176aa6; }
+.legend-dot.cash { background: #8db7cf; }
+.progress-card .progress-list { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.progress-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #475569; margin-bottom: 6px; }
+.progress-head strong { color: #163f67; }
+.progress-track { height: 13px; background: #edf3f7; border-radius: 999px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #82b94d, #4d8f9f); border-radius: inherit; }
+.monthly-visual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .monthly-visual-grid { grid-template-columns: 1fr; }
+}
+@media print {
+  .visual-chart { min-height: 185px; padding: 10px 12px; break-inside: avoid; page-break-inside: avoid; }
+  .visual-chart-title { font-size: 13px; margin-bottom: 8px; }
+  .bar-row { grid-template-columns: 105px minmax(70px, 1fr) 55px; gap: 6px; }
+  .bar-label, .bar-value, .progress-head, .donut-legend { font-size: 9px; }
+  .bar-track, .progress-track { height: 8px; }
+  .donut { width: 96px; height: 96px; }
+  .donut::before { width: 62px; height: 62px; }
+  .donut-center strong { font-size: 18px; }
+  .donut-center span { font-size: 8px; }
+  .dashboard-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .monthly-visual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}
