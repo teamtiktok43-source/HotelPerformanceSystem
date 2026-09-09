@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getHotels, getMonthly, Hotel } from '../api'
 import Stat from '../components/StatCard'
 import Print from '../components/PrintButton'
+import Toast from '../components/Toast'
 import { ComparisonDonut, HorizontalBars, PlatformShareChart } from '../components/ReportCharts'
 
 function monthName(m: number) {
@@ -25,9 +26,20 @@ export default function MonthlyReport() {
   const [hotelId, setHotelId] = useState('')
   const [data, setData] = useState<any>(null)
   const [hotels, setHotels] = useState<Hotel[]>([])
-  const load = () => getMonthly(y, m, hotelId ? Number(hotelId) : undefined).then(setData)
+  const [reportError, setReportError] = useState('')
+  const load = async () => {
+    try {
+      const result = await getMonthly(y, m, hotelId ? Number(hotelId) : undefined)
+      setData(result)
+      setReportError('')
+    } catch (ex: any) {
+      setReportError(ex?.message || 'تعذر تحميل بيانات التقرير')
+    }
+  }
 
-  useEffect(() => { getHotels().then(setHotels) }, [])
+  useEffect(() => {
+    getHotels().then(setHotels).catch(() => {})
+  }, [])
   useEffect(() => { load() }, [y, m, hotelId])
 
   const d = data || { rows: [], totals: {}, previous: { rows: [], totals: {}, year: previousMonth(y, m).year, month: previousMonth(y, m).month } }
@@ -57,7 +69,7 @@ export default function MonthlyReport() {
   const previousPeriod = d.previous ? { year: num(d.previous.year) || previousMonth(y,m).year, month: num(d.previous.month) || previousMonth(y,m).month } : previousMonth(y,m)
 
   return (
-    <section className="page">
+    <section className="page monthly-report-page">
       <div className="page-head">
         <div><h2>التقرير الشهري</h2><p>{monthName(m)} {y} — ملخص + المقارنات + التقرير التفصيلي</p></div>
         <div className="actions no-print"><button className="btn primary" onClick={load}>عرض التقرير</button><Print /></div>
@@ -141,6 +153,7 @@ export default function MonthlyReport() {
           <tbody>{rows.length ? rows.map((r:any) => <tr key={r.hotel_name}><td>{r.hotel_name}</td><td>{num(r.bookings)}</td><td>{num(r.paid)}</td><td>{num(r.cash)}</td><td>{num(r.actual_revenue).toFixed(2)}</td><td>{num(r.commission).toFixed(2)}</td><td>{num(r.tax).toFixed(2)}</td><td>{num(r.net_revenue).toFixed(2)}</td><td>{num(r.review_count)}</td><td>{num(r.average_rating).toFixed(2)}</td></tr>) : <tr><td colSpan={10} className="empty-cell">لا توجد بيانات لهذه الفترة.</td></tr>}</tbody>
         </table></div>
       </section>
+      {reportError && <Toast text={reportError} error onClose={() => setReportError('')} />}
     </section>
   )
 }

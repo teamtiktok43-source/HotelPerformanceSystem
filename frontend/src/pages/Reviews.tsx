@@ -24,7 +24,7 @@ export default function Reviews({ user }: { user: User }) {
   const [toast, setToast] = useState('')
   const [error, setError] = useState(false)
 
-  const load = () => getReviews().then(setRows).catch(() => { setRows([]); setToast('تعذر تحميل التقييمات'); setError(true) })
+  const load = () => getReviews().then(setRows).catch((ex: any) => { setToast(ex?.message || 'تعذر تحميل التقييمات'); setError(true) })
   useEffect(() => { Promise.all([getHotels(), getEmployees(), getPlatforms()]).then(([h, e, p]) => { setHotels(h); setEmps(e); setPlatforms(p) }).catch(() => { setToast('تعذر تحميل بيانات النموذج'); setError(true) }) }, [])
   useEffect(() => { load() }, [tick])
 

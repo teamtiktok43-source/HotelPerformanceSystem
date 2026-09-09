@@ -30,6 +30,13 @@ def ensure_schema_updates():
 
     statements = []
     backend = engine.url.get_backend_name()
+
+    def column_type(name: str) -> str:
+        # PostgreSQL does not support DATETIME as a type; SQLite does.
+        if name == "updated_at":
+            return "DATETIME" if backend == "sqlite" else "TIMESTAMP"
+        return ""
+
     def add_column(table, column, ddl):
         if backend == "sqlite":
             statements.append(f"ALTER TABLE {table} ADD COLUMN {ddl}")
@@ -51,18 +58,20 @@ def ensure_schema_updates():
     if "rejection_reason" not in review_columns:
         add_column("reviews", "rejection_reason", "rejection_reason TEXT NOT NULL DEFAULT ''")
     if "updated_at" not in review_columns:
-        add_column("reviews", "updated_at", "updated_at DATETIME")
+        add_column("reviews", "updated_at", f"updated_at {column_type('updated_at')}")
 
     if not statements:
         return
-    try:
-        with engine.begin() as conn:
-            for stmt in statements:
+
+    # Run migrations independently so one invalid legacy DDL statement cannot
+    # roll back all of the other safe schema upgrades.
+    for stmt in statements:
+        try:
+            with engine.begin() as conn:
                 conn.execute(text(stmt))
-    except Exception:
-        # Some SQLite installations may reject a subset of ALTER statements;
-        # the application remains usable and the next startup retries.
-        pass
+        except Exception:
+            # Keep startup resilient; the failed column can be retried next run.
+            pass
 
     # Map existing revenue platform text to managed platform IDs where possible.
     try:

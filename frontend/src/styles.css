@@ -185,6 +185,16 @@
 .month-delete-panel{border-color:#f0c7c3}.month-delete-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}.month-delete-head h3{margin:0 0 4px}.month-delete-head p{margin:0;color:#7a8796;font-size:13px}.danger-badge{background:#fff1f0;color:#b42318;border:1px solid #f0c7c3;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;white-space:nowrap}.month-delete-controls{display:grid;grid-template-columns:220px 220px auto;gap:14px;align-items:end;margin-top:14px}.month-delete-controls label{display:flex;flex-direction:column;gap:6px;font-weight:700;color:#334155}.month-delete-controls select{border:1px solid #cfd9e4;border-radius:9px;padding:10px;background:#fff;color:#111827}.btn.danger{background:#b42318;color:#fff}.btn.danger:hover{background:#941b12}.btn.danger:disabled{opacity:.65;cursor:not-allowed}
 @media(max-width:850px){.month-delete-controls{grid-template-columns:1fr 1fr}.month-delete-controls .btn{grid-column:span 2}.month-delete-head{flex-direction:column}}
 @media(max-width:580px){.month-delete-controls{grid-template-columns:1fr}.month-delete-controls .btn{grid-column:auto}}
+.monthly-platform-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  align-items:stretch;
+}
+@media(max-width:900px){
+  .monthly-platform-grid { grid-template-columns:1fr; }
+}
+
 /* Monthly report — compact professional comparison layout */
 .monthly-filters label { min-width: 180px; }
 .monthly-chart-section, .monthly-donut-section {
@@ -495,4 +505,193 @@
   .header-branding h1 { font-size:18px; }
   .detail-facts { grid-template-columns:1fr; }
   .notification-dropdown { width:min(360px,calc(100vw - 20px)); }
+}
+
+
+/* Monthly report print layout — deterministic 3-stage pagination */
+@media print {
+  .monthly-report-page {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .monthly-report-page .monthly-chart-section,
+  .monthly-report-page .monthly-donut-section,
+  .monthly-report-page .monthly-detail-panel {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .monthly-report-page .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin-bottom: 7px !important;
+  }
+
+  .monthly-report-page .stat-card-premium,
+  .monthly-report-page .stat-card {
+    min-height: 66px !important;
+    padding: 6px 7px !important;
+  }
+
+  .monthly-report-page .stat-card-premium .stat-value {
+    font-size: 14px !important;
+    margin-top: 4px !important;
+  }
+
+  .monthly-report-page .stat-card-premium .stat-title {
+    font-size: 8px !important;
+  }
+
+  .monthly-report-page .stat-icon {
+    width: 23px !important;
+    height: 23px !important;
+  }
+
+  .monthly-report-page .stat-icon svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .monthly-report-page .monthly-chart-section,
+  .monthly-report-page .monthly-donut-section {
+    padding: 5px 6px !important;
+    margin-bottom: 5px !important;
+    border-radius: 8px !important;
+  }
+
+  .monthly-report-page .monthly-section-head {
+    margin-bottom: 4px !important;
+    gap: 6px !important;
+  }
+
+  .monthly-report-page .monthly-section-head h3 {
+    font-size: 10px !important;
+  }
+
+  .monthly-report-page .monthly-section-head span,
+  .monthly-report-page .detail-period-note {
+    font-size: 7px !important;
+  }
+
+  .monthly-report-page .monthly-chart-pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 5px !important;
+  }
+
+  .monthly-report-page .monthly-chart-pair > .visual-chart {
+    min-height: 105px !important;
+    padding: 6px 7px !important;
+    border-radius: 8px !important;
+  }
+
+  .monthly-report-page .visual-chart-title {
+    font-size: 9px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .monthly-report-page .bar-list {
+    gap: 3px !important;
+  }
+
+  .monthly-report-page .bar-row {
+    grid-template-columns: 90px minmax(45px, 1fr) 42px !important;
+    gap: 4px !important;
+  }
+
+  .monthly-report-page .bar-label,
+  .monthly-report-page .bar-value {
+    font-size: 7px !important;
+  }
+
+  .monthly-report-page .bar-track {
+    height: 6px !important;
+  }
+
+  .monthly-report-page .chart-empty {
+    padding: 15px 0 !important;
+    font-size: 8px !important;
+  }
+
+  .monthly-report-page .monthly-platform-grid,
+  .monthly-report-page .monthly-donut-grid {
+    gap: 5px !important;
+  }
+
+  .monthly-report-page .monthly-donut-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .monthly-report-page .platform-chart-card,
+  .monthly-report-page .compact-donut {
+    min-height: 92px !important;
+    padding: 6px 7px !important;
+    border-radius: 8px !important;
+  }
+
+  .monthly-report-page .platform-stack {
+    height: 8px !important;
+    margin: 3px 0 !important;
+  }
+
+  .monthly-report-page .platform-legend {
+    gap: 2px !important;
+    margin-top: 4px !important;
+  }
+
+  .monthly-report-page .platform-legend-item {
+    font-size: 7px !important;
+    grid-template-columns: 7px minmax(0, 1fr) auto !important;
+    gap: 3px !important;
+  }
+
+  .monthly-report-page .platform-color {
+    width: 6px !important;
+    height: 6px !important;
+  }
+
+  .monthly-report-page .donut-wrap {
+    min-height: 45px !important;
+  }
+
+  .monthly-report-page .donut {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  .monthly-report-page .donut::before {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .monthly-report-page .donut-center strong {
+    font-size: 11px !important;
+  }
+
+  .monthly-report-page .donut-center span,
+  .monthly-report-page .donut-legend {
+    font-size: 7px !important;
+  }
+
+  .monthly-report-page .donut-legend {
+    margin-top: 3px !important;
+    gap: 5px !important;
+  }
+
+  .monthly-report-page .monthly-detail-panel {
+    break-before: page !important;
+    page-break-before: always !important;
+    margin-top: 0 !important;
+  }
+
+  .monthly-report-page .monthly-detail-table {
+    font-size: 7px !important;
+  }
+
+  .monthly-report-page .monthly-detail-table th,
+  .monthly-report-page .monthly-detail-table td {
+    padding: 3px 3px !important;
+  }
 }
