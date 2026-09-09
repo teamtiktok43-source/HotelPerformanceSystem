@@ -5,6 +5,7 @@ import PrintButton from '../components/PrintButton'
 import { useRealtime } from '../useRealtime'
 import { Link } from 'react-router-dom'
 import { DonutChart, HorizontalBars, PlatformShareChart, ProgressList } from '../components/ReportCharts'
+import { Star, CalendarDays, CreditCard, Users, BarChart3, Coins, Receipt, Hotel as HotelIcon, ClipboardList, DollarSign } from 'lucide-react'
 
 const DEFAULTS = {
   kpis: {
@@ -62,10 +63,10 @@ export default function Home() {
   const showRatings = section === 'all' || section === 'ratings'
 
   const actions = [
-    ['التقييمات', '/reviews', '📝', 'reviews'],
-    ['الحجوزات اليومية', '/bookings', '📅', 'bookings'],
-    ['الإيرادات اليومية', '/revenue', '💵', 'revenue'],
-    ['التقرير الشهري', '/monthly', '📊', 'all'],
+    ['التقييمات', '/reviews', <ClipboardList size={21} strokeWidth={2.1} />, 'reviews'],
+    ['الحجوزات اليومية', '/bookings', <CalendarDays size={21} strokeWidth={2.1} />, 'bookings'],
+    ['الإيرادات اليومية', '/revenue', <DollarSign size={21} strokeWidth={2.1} />, 'revenue'],
+    ['التقرير الشهري', '/monthly', <BarChart3 size={21} strokeWidth={2.1} />, 'all'],
   ] as const
 
   const visibleActions = section === 'all' ? actions : actions.filter(a => a[3] === section || a[3] === 'all')
@@ -90,6 +91,20 @@ export default function Home() {
         </div>
       </div>
 
+      <div className="home-hero print-friendly">
+        <div className="home-hero-overlay" />
+        <div className="home-hero-content">
+          <div className="home-hero-eyebrow">HOTEL PERFORMANCE SYSTEM</div>
+          <h2>لوحة أداء الفنادق</h2>
+          <p>رؤية أوضح .. قرارات أسرع .. أداء أفضل</p>
+        </div>
+        <div className="home-hero-date">
+          <span>التاريخ</span>
+          <strong>{new Intl.DateTimeFormat('ar-EG', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date())}</strong>
+          <CalendarDays size={24} strokeWidth={1.8} />
+        </div>
+      </div>
+
       <div className="filters no-print dashboard-filters">
         <label>من تاريخ<input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
         <label>إلى تاريخ<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
@@ -98,19 +113,19 @@ export default function Home() {
       </div>
 
       <div className="stats">
-        {(showReviews || section === 'all') && <StatCard title="إجمالي التقييمات" value={d.kpis.reviews} />}
-        {(showBookings || section === 'all') && <StatCard title="إجمالي الحجوزات" value={d.kpis.bookings} />}
-        {(showBookings || section === 'all') && <StatCard title="الحجوزات المدفوعة" value={d.kpis.paid_bookings} />}
-        {(showBookings || section === 'all') && <StatCard title="الحجوزات الكاش" value={d.kpis.cash_bookings} />}
-        {(showRevenue || section === 'all') && <StatCard title="السعر الإجمالي" value={d.kpis.actual_revenue} />}
-        {(showRevenue || section === 'all') && <StatCard title="العمولة" value={d.kpis.commission} />}
-        {(showRevenue || section === 'all') && <StatCard title="الضرائب" value={d.kpis.tax} />}
-        {(showRevenue || section === 'all') && <StatCard title="صافي الإيراد" value={d.kpis.net_revenue} />}
-        {(showRatings || section === 'all') && <StatCard title="متوسط التقييم" value={d.kpis.average_rating} unit="/10" />}
+        {(showReviews || section === 'all') && <StatCard title="إجمالي التقييمات" value={d.kpis.reviews} icon={<Star size={23} strokeWidth={2.2} />} accentColor="pink" sparklineData={[2, 2, 3, 2, 4, 3, 4, 5]} />}
+        {(showBookings || section === 'all') && <StatCard title="إجمالي الحجوزات" value={d.kpis.bookings} icon={<CalendarDays size={23} strokeWidth={2.2} />} accentColor="cyan" sparklineData={[2, 3, 2, 4, 4, 3, 5, 5]} />}
+        {(showBookings || section === 'all') && <StatCard title="الحجوزات المدفوعة" value={d.kpis.paid_bookings} icon={<CreditCard size={23} strokeWidth={2.2} />} accentColor="violet" sparklineData={[1, 2, 2, 3, 2, 4, 4, 5]} />}
+        {(showBookings || section === 'all') && <StatCard title="الحجوزات الكاش" value={d.kpis.cash_bookings} icon={<Users size={23} strokeWidth={2.2} />} accentColor="orange" sparklineData={[1, 1, 2, 2, 3, 2, 4, 3]} />}
+        {(showRevenue || section === 'all') && <StatCard title="السعر الإجمالي" value={d.kpis.actual_revenue} icon={<BarChart3 size={23} strokeWidth={2.2} />} accentColor="blue" sparklineData={[1, 2, 2, 3, 3, 4, 5, 5]} />}
+        {(showRevenue || section === 'all') && <StatCard title="العمولة" value={d.kpis.commission} icon={<Coins size={23} strokeWidth={2.2} />} accentColor="green" sparklineData={[1, 1, 2, 2, 2, 3, 3, 4]} />}
+        {(showRevenue || section === 'all') && <StatCard title="الضرائب" value={d.kpis.tax} icon={<Receipt size={23} strokeWidth={2.2} />} accentColor="red" sparklineData={[1, 2, 1, 2, 1, 3, 2, 2]} />}
+        {(showRevenue || section === 'all') && <StatCard title="صافي الإيراد" value={d.kpis.net_revenue} icon={<HotelIcon size={23} strokeWidth={2.2} />} accentColor="purple" sparklineData={[2, 2, 3, 3, 4, 4, 5, 5]} />}
+        {(showRatings || section === 'all') && <StatCard title="متوسط التقييم" value={d.kpis.average_rating} unit="/10" icon={<Star size={23} strokeWidth={2.2} />} accentColor="pink" sparklineData={[3, 4, 4, 5, 4, 5, 5, 6]} />}
       </div>
 
       <div className="quick-grid no-print">
-        {visibleActions.map(([label, to, icon]) => <Link className="quick-card" to={to} key={to}><span>{icon}</span><b>فتح {label}</b></Link>)}
+        {visibleActions.map((action) => <Link className="quick-card" to={action[1]} key={action[1]}><span>{action[2]}</span><b>فتح {action[0]}</b></Link>)}
       </div>
 
       <div className="platform-section print-friendly">
