@@ -33,6 +33,7 @@ class EmployeeUpdate(BaseModel):
 
 class BookingCreate(BaseModel):
     hotel_id: int
+    platform_id: int | None = None
     booking_date: date
     total_bookings: int = Field(ge=0)
     paid_bookings: int = Field(ge=0)
@@ -40,6 +41,7 @@ class BookingCreate(BaseModel):
 
 class BookingUpdate(BaseModel):
     hotel_id: int | None = None
+    platform_id: int | None = None
     booking_date: date | None = None
     total_bookings: int | None = Field(default=None, ge=0)
     paid_bookings: int | None = Field(default=None, ge=0)
@@ -48,6 +50,7 @@ class BookingUpdate(BaseModel):
 class RevenueCreate(BaseModel):
     booking_number: str
     hotel_id: int
+    platform_id: int | None = None
     platform: str
     revenue_date: date
     actual_price: Decimal = Field(ge=0)
@@ -57,6 +60,7 @@ class RevenueCreate(BaseModel):
 class RevenueUpdate(BaseModel):
     booking_number: str | None = None
     hotel_id: int | None = None
+    platform_id: int | None = None
     platform: str | None = None
     revenue_date: date | None = None
     actual_price: Decimal | None = Field(default=None, ge=0)
@@ -66,6 +70,7 @@ class RevenueUpdate(BaseModel):
 class ReviewCreate(BaseModel):
     booking_number: str
     hotel_id: int
+    platform_id: int | None = None
     rating: Decimal = Field(ge=0, le=10)
     comment: str
     sentiment: str
@@ -76,6 +81,7 @@ class ReviewCreate(BaseModel):
 class ReviewUpdate(BaseModel):
     booking_number: str | None = None
     hotel_id: int | None = None
+    platform_id: int | None = None
     rating: Decimal | None = Field(default=None, ge=0, le=10)
     comment: str | None = None
     sentiment: str | None = None
@@ -85,6 +91,14 @@ class ReviewUpdate(BaseModel):
 
 class ReviewDecision(BaseModel):
     status: str
+
+class PlatformCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    active: bool = True
+
+class PlatformUpdate(BaseModel):
+    name: str | None = None
+    active: bool | None = None
 
 class ModelConfig(BaseModel):
     model_config = ConfigDict(from_attributes=True)

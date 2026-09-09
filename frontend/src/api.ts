@@ -1,16 +1,20 @@
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 export type User={id:number;username:string;display_name:string;role:string;active:boolean};
 export type Hotel={id:number;name:string;commission_rate:number;tax_rate:number;active:boolean};
+export type Platform={id:number;name:string;active:boolean};
 const token=()=>localStorage.getItem('hps_token')||'';
 export async function apiFetch<T>(path:string, options:RequestInit={}):Promise<T>{const headers=new Headers(options.headers);if(!(options.body instanceof FormData))headers.set('Content-Type','application/json');const t=token();if(t)headers.set('Authorization',`Bearer ${t}`);const r=await fetch(`${API_BASE}${path}`,{...options,headers});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'حدث خطأ في الاتصال');return d as T;}
 export const getHotels=()=>apiFetch<Hotel[]>('/api/hotels');
+export const getPlatforms=()=>apiFetch<Platform[]>('/api/platforms');
+export const createPlatform=(b:any)=>apiFetch<Platform>('/api/platforms',{method:'POST',body:JSON.stringify(b)});
+export const updatePlatform=(id:number,b:any)=>apiFetch<Platform>(`/api/platforms/${id}`,{method:'PATCH',body:JSON.stringify(b)});
 export const getEmployees=()=>apiFetch<User[]>('/api/employees');
 export const getDashboard=(params:string)=>apiFetch<any>(`/api/dashboard?${params}`);
 export const getBookings=(params='')=>apiFetch<any[]>(`/api/bookings?${params}`);
 export const getRevenue=(params='')=>apiFetch<any[]>(`/api/revenue?${params}`);
 export const getReviews=(params='')=>apiFetch<any[]>(`/api/reviews?${params}`);
 export const getRatings=(year?:number,month?:number)=>apiFetch<any[]>(`/api/ratings${year&&month?`?year=${year}&month=${month}`:''}`);
-export const getMonthly=(y:number,m:number)=>apiFetch<any>(`/api/monthly-report?year=${y}&month=${m}`);
+export const getMonthly=(y:number,m:number,hotelId?:number)=>apiFetch<any>(`/api/monthly-report?year=${y}&month=${m}${hotelId?`&hotel_id=${hotelId}`:''}`);
 export const createBooking=(b:any)=>apiFetch<any>('/api/bookings',{method:'POST',body:JSON.stringify(b)});
 export const createRevenue=(b:any)=>apiFetch<any>('/api/revenue',{method:'POST',body:JSON.stringify(b)});
 export const createReview=(b:any)=>apiFetch<any>('/api/reviews',{method:'POST',body:JSON.stringify(b)});

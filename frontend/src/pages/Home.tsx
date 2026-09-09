@@ -4,7 +4,7 @@ import StatCard from '../components/StatCard'
 import PrintButton from '../components/PrintButton'
 import { useRealtime } from '../useRealtime'
 import { Link } from 'react-router-dom'
-import { DonutChart, HorizontalBars, ProgressList } from '../components/ReportCharts'
+import { DonutChart, HorizontalBars, PlatformShareChart, ProgressList } from '../components/ReportCharts'
 
 const DEFAULTS = {
   kpis: {
@@ -26,6 +26,7 @@ const DEFAULTS = {
     { name: 'محايد', value: 0 },
   ],
   hotel_performance: [],
+  platform_breakdown: { bookings: [], reviews: [], revenue: [] },
 }
 
 const sectionOptions = [
@@ -101,7 +102,7 @@ export default function Home() {
         {(showBookings || section === 'all') && <StatCard title="إجمالي الحجوزات" value={d.kpis.bookings} />}
         {(showBookings || section === 'all') && <StatCard title="الحجوزات المدفوعة" value={d.kpis.paid_bookings} />}
         {(showBookings || section === 'all') && <StatCard title="الحجوزات الكاش" value={d.kpis.cash_bookings} />}
-        {(showRevenue || section === 'all') && <StatCard title="الإيراد الفعلي" value={d.kpis.actual_revenue} />}
+        {(showRevenue || section === 'all') && <StatCard title="السعر الإجمالي" value={d.kpis.actual_revenue} />}
         {(showRevenue || section === 'all') && <StatCard title="العمولة" value={d.kpis.commission} />}
         {(showRevenue || section === 'all') && <StatCard title="الضرائب" value={d.kpis.tax} />}
         {(showRevenue || section === 'all') && <StatCard title="صافي الإيراد" value={d.kpis.net_revenue} />}
@@ -110,6 +111,15 @@ export default function Home() {
 
       <div className="quick-grid no-print">
         {visibleActions.map(([label, to, icon]) => <Link className="quick-card" to={to} key={to}><span>{icon}</span><b>فتح {label}</b></Link>)}
+      </div>
+
+      <div className="platform-section print-friendly">
+        <div className="platform-section-head"><div><h3>توزيع الأداء حسب المنصة</h3><p>نسبة الحجوزات والتقييمات والقيمة المالية حسب مصدر الحجز.</p></div><Link className="platform-manage-link no-print" to="/platforms">إدارة المنصات</Link></div>
+        <div className="platform-chart-grid">
+          <PlatformShareChart title="نسبة الحجوزات حسب المنصة" items={d.platform_breakdown?.bookings || []} />
+          <PlatformShareChart title="نسبة التقييمات حسب المنصة" items={d.platform_breakdown?.reviews || []} />
+          <PlatformShareChart title="نسبة السعر الإجمالي حسب المنصة" items={d.platform_breakdown?.revenue || []} />
+        </div>
       </div>
 
       <div className="dashboard-chart-grid print-friendly visual-chart-grid">

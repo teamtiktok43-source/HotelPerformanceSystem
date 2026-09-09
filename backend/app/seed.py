@@ -1,7 +1,9 @@
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from .models import Hotel, User
+from .models import Hotel, Platform, User
 from .auth import hash_password
+
+PLATFORMS = ["Booking.com", "Expedia.com", "Trip.com"]
 
 HOTELS = [
     ("26 july apartments", Decimal("0.15")),
@@ -52,6 +54,9 @@ def seed_defaults(db: Session):
     for username, password, display_name, role in USERS:
         if not db.query(User).filter_by(username=username).first():
             db.add(User(username=username, password_hash=hash_password(password), display_name=display_name, role=role, active=True))
+    for name in PLATFORMS:
+        if not db.query(Platform).filter_by(name=name).first():
+            db.add(Platform(name=name, active=True))
     for name, rate in HOTELS:
         if not db.query(Hotel).filter_by(name=name).first():
             db.add(Hotel(name=name, commission_rate=rate, active=True))

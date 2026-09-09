@@ -45,7 +45,6 @@
 }
 
 @media print {
-  @page { size: A4 landscape; margin: 10mm; }
   body { background:#fff; }
   .main { padding:0; }
   .page { width:100%; max-width:none; }
@@ -186,3 +185,44 @@
 .month-delete-panel{border-color:#f0c7c3}.month-delete-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}.month-delete-head h3{margin:0 0 4px}.month-delete-head p{margin:0;color:#7a8796;font-size:13px}.danger-badge{background:#fff1f0;color:#b42318;border:1px solid #f0c7c3;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;white-space:nowrap}.month-delete-controls{display:grid;grid-template-columns:220px 220px auto;gap:14px;align-items:end;margin-top:14px}.month-delete-controls label{display:flex;flex-direction:column;gap:6px;font-weight:700;color:#334155}.month-delete-controls select{border:1px solid #cfd9e4;border-radius:9px;padding:10px;background:#fff;color:#111827}.btn.danger{background:#b42318;color:#fff}.btn.danger:hover{background:#941b12}.btn.danger:disabled{opacity:.65;cursor:not-allowed}
 @media(max-width:850px){.month-delete-controls{grid-template-columns:1fr 1fr}.month-delete-controls .btn{grid-column:span 2}.month-delete-head{flex-direction:column}}
 @media(max-width:580px){.month-delete-controls{grid-template-columns:1fr}.month-delete-controls .btn{grid-column:auto}}
+\n\n/* Monthly report — compact professional comparison layout */\n.monthly-filters label { min-width: 180px; }\n.monthly-chart-section, .monthly-donut-section {\n  background:#fff; border:1px solid #dde5ee; border-radius:14px; padding:14px 16px; margin-bottom:16px;\n}\n.monthly-section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; margin-bottom:10px; }\n.monthly-section-head h3 { margin:0; color:#163f67; font-size:18px; }\n.monthly-section-head span { color:#7a8796; font-size:12px; }\n.monthly-chart-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }\n.monthly-chart-pair .visual-chart { min-height:190px; }\n.monthly-donut-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }\n.compact-donut { min-height:205px; }\n.comparison-legend { gap:12px; }\n.monthly-detail-panel {\n  margin-top:22px;\n  position:relative;\n}\n.detail-period-note { margin:3px 0 0; color:#7a8796; font-size:12px; }\n.monthly-detail-table { table-layout:fixed; min-width:0; width:100%; }\n.monthly-detail-table th, .monthly-detail-table td { overflow-wrap:anywhere; }\n.monthly-detail-table th:first-child, .monthly-detail-table td:first-child { width:24%; }\n\n@media(max-width:950px){\n  .monthly-chart-pair { grid-template-columns:1fr; }\n  .monthly-donut-grid { grid-template-columns:1fr 1fr; }\n}\n@media(max-width:650px){\n  .monthly-donut-grid { grid-template-columns:1fr; }\n  .monthly-section-head { flex-direction:column; align-items:flex-start; }\n}\n\n@media print {\n  /* Let the browser/user choose portrait or landscape. */\n  @page { size:auto; margin:10mm; }\n  .monthly-chart-section, .monthly-donut-section { box-shadow:none; padding:8px 9px; margin-bottom:7px; }\n  .monthly-chart-pair { grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }\n  .monthly-donut-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }\n  .monthly-chart-pair .visual-chart { min-height:150px; }\n  .monthly-donut-section .visual-chart { min-height:150px; }\n  .monthly-section-head h3 { font-size:12px; }\n  .monthly-section-head span, .detail-period-note { font-size:8px; }\n  .monthly-detail-panel {\n    break-before:page; page-break-before:always;\n    margin-top:0;\n  }\n  .monthly-detail-table { font-size:8px; }\n  .monthly-detail-table th, .monthly-detail-table td { padding:3px 4px; }\n  .monthly-detail-table th:first-child, .monthly-detail-table td:first-child { width:22%; }\n}\n\n@media print and (orientation: portrait) {\n  .monthly-chart-pair, .monthly-donut-grid { grid-template-columns:1fr; }\n  .monthly-chart-pair .visual-chart, .monthly-donut-section .visual-chart { min-height:135px; }\n  .monthly-detail-table { font-size:7px; }\n  .monthly-detail-table th, .monthly-detail-table td { padding:2px 3px; }\n}\n\n@media print and (orientation: landscape) {\n  .monthly-chart-pair { grid-template-columns:repeat(2,minmax(0,1fr)); }\n  .monthly-donut-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }\n}\n
+
+/* Platform management + analytics */
+.platform-form { max-width: 760px; margin-inline: auto; }
+.platform-add-grid { grid-template-columns: minmax(260px, 1fr); }
+.platform-note { margin-bottom: 14px; color: #64748b; font-size: 13px; text-align: center; }
+.platform-active, .platform-inactive { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.platform-active { background: #e9f8f1; color: #0d7b4f; }
+.platform-inactive { background: #f1f5f9; color: #64748b; }
+.modal-single-label { display: flex; flex-direction: column; gap: 7px; font-weight: 800; color: #334155; }
+.modal-single-label input { border: 1px solid #cfd9e4; border-radius: 10px; padding: 11px 12px; background: #fff; }
+
+.platform-section { background: linear-gradient(180deg,#fbfdff,#f8fbfe); border: 1px solid #dfe9f3; border-radius: 18px; padding: 16px; margin-bottom: 16px; box-shadow: 0 10px 28px rgba(18,56,95,.06); }
+.platform-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.platform-section-head h3 { margin:0; color:#123e68; font-size:18px; }
+.platform-section-head p { margin:4px 0 0; color:#718096; font-size:12px; }
+.platform-manage-link { border:1px solid #cbdceb; color:#176aa6; background:#fff; text-decoration:none; padding:8px 11px; border-radius:10px; font-size:12px; font-weight:800; white-space:nowrap; }
+.platform-chart-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.platform-chart-card { background:#fff; border:1px solid #dde7f0; border-radius:15px; padding:13px 14px; min-height:170px; display:flex; flex-direction:column; justify-content:center; }
+.platform-stack { height:18px; display:flex; overflow:hidden; border-radius:999px; background:#eef3f7; box-shadow:inset 0 0 0 1px rgba(20,60,100,.06); }
+.platform-stack span { height:100%; }
+.platform-legend { display:grid; grid-template-columns:1fr; gap:7px; margin-top:12px; }
+.platform-legend-item { display:grid; grid-template-columns:12px minmax(0,1fr) auto; align-items:center; gap:7px; font-size:12px; color:#475569; }
+.platform-legend-item strong { color:#173b61; }
+.platform-color { width:10px; height:10px; border-radius:3px; display:inline-block; }
+
+/* Centered premium dashboard feel */
+.stats .stat-card { position:relative; overflow:hidden; text-align:center; background:linear-gradient(180deg,#fff,#fbfdff); }
+.stats .stat-card::after { content:''; position:absolute; inset:auto 18% 0; height:3px; border-radius:5px 5px 0 0; background:#176aa6; opacity:.18; }
+.stats .stat-card:nth-child(2)::after, .stats .stat-card:nth-child(5)::after { background:#22a879; }
+.stats .stat-card:nth-child(3)::after, .stats .stat-card:nth-child(6)::after { background:#8b5cf6; }
+.stats .stat-card:nth-child(4)::after, .stats .stat-card:nth-child(7)::after { background:#f59e0b; }
+.stats .stat-card:nth-child(8)::after, .stats .stat-card:nth-child(9)::after { background:#ef476f; }
+.stat-title { text-align:center; }
+.stat-value { text-align:center; }
+.page-head { align-items:center; }
+.page-head > div:first-child { text-align:right; }
+
+@media(max-width:1000px){ .platform-chart-grid { grid-template-columns:1fr; } }
+@media(max-width:850px){ .platform-section-head { flex-direction:column; align-items:flex-start; } .platform-add-grid { grid-template-columns:1fr; } }
+@media print { .platform-section { box-shadow:none; padding:8px; } .platform-chart-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; } .platform-chart-card { min-height:115px; padding:8px; } .platform-stack { height:11px; } .platform-legend-item { font-size:8px; } .platform-section-head h3 { font-size:11px; } .platform-section-head p { font-size:7px; } }

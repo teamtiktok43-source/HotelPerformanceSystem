@@ -7,6 +7,8 @@ import {
   getData,
   getEmployees,
   getHotels,
+  getPlatforms,
+  Platform,
   updateBooking,
   updateRevenue,
   updateReview,
@@ -24,6 +26,7 @@ export default function Data() {
   const [d, setD] = useState<any>({ bookings: [], revenues: [], reviews: [] })
   const [hotels, setHotels] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
+  const [platforms, setPlatforms] = useState<Platform[]>([])
   const [editing, setEditing] = useState<{ type: 'booking' | 'revenue' | 'review'; row: any } | null>(null)
   const [form, setForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
@@ -38,9 +41,10 @@ export default function Data() {
   }
 
   useEffect(() => {
-    Promise.all([refresh(), getHotels(), getEmployees()]).then(([, hs, es]) => {
+    Promise.all([refresh(), getHotels(), getEmployees(), getPlatforms()]).then(([, hs, es, ps]) => {
       setHotels(Array.isArray(hs) ? hs : [])
       setEmployees(Array.isArray(es) ? es : [])
+      setPlatforms(Array.isArray(ps) ? ps : [])
     }).catch(() => {})
   }, [tick])
 
@@ -55,6 +59,7 @@ export default function Data() {
         booking_date: dateValue(row.booking_date),
         total_bookings: row.total_bookings ?? 0,
         paid_bookings: row.paid_bookings ?? 0,
+        platform_id: String(row.platform_id ?? ''),
         employee_id: String(row.employee_id ?? ''),
       })
     } else if (type === 'revenue') {
@@ -62,6 +67,7 @@ export default function Data() {
         booking_number: row.booking_number ?? '',
         hotel_id: String(row.hotel_id ?? ''),
         platform: row.platform ?? 'Booking.com',
+        platform_id: String(row.platform_id ?? ''),
         revenue_date: dateValue(row.revenue_date),
         actual_price: row.actual_price ?? 0,
         commissionable_amount: row.commissionable_amount ?? 0,
@@ -71,6 +77,7 @@ export default function Data() {
       setForm({
         booking_number: row.booking_number ?? '',
         hotel_id: String(row.hotel_id ?? ''),
+        platform_id: String(row.platform_id ?? ''),
         rating: row.rating ?? 0,
         comment: row.comment ?? '',
         sentiment: row.sentiment ?? 'Positive',
@@ -94,6 +101,7 @@ export default function Data() {
       if (editing.type === 'booking') {
         await updateBooking(editing.row.id, {
           hotel_id: Number(form.hotel_id),
+          platform_id: form.platform_id ? Number(form.platform_id) : undefined,
           booking_date: form.booking_date,
           total_bookings: Number(form.total_bookings),
           paid_bookings: Number(form.paid_bookings),
@@ -103,6 +111,7 @@ export default function Data() {
         await updateRevenue(editing.row.id, {
           booking_number: String(form.booking_number),
           hotel_id: Number(form.hotel_id),
+          platform_id: form.platform_id ? Number(form.platform_id) : undefined,
           platform: String(form.platform),
           revenue_date: form.revenue_date,
           actual_price: Number(form.actual_price),
@@ -113,6 +122,7 @@ export default function Data() {
         await updateReview(editing.row.id, {
           booking_number: String(form.booking_number),
           hotel_id: Number(form.hotel_id),
+          platform_id: form.platform_id ? Number(form.platform_id) : undefined,
           rating: Number(form.rating),
           comment: String(form.comment),
           sentiment: String(form.sentiment),
@@ -217,22 +227,22 @@ export default function Data() {
 
       <div className="panel">
         <h3>الحجوزات ({d.bookings.length})</h3>
-        <div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>الفندق</th><th>الإجمالي</th><th>مدفوع</th><th>كاش</th><th>الموظف</th>{canManage && <th>إجراء</th>}</tr></thead>
-          <tbody>{d.bookings.length ? d.bookings.map((r: any) => <tr key={r.id}><td>{r.booking_date}</td><td>{r.hotel_name}</td><td>{r.total_bookings}</td><td>{r.paid_bookings}</td><td>{r.cash_bookings}</td><td>{r.employee_name}</td>{canManage && <td><div className="action-row"><button className="mini" onClick={() => openEdit('booking', r)}>تعديل</button><button className="mini mini-danger" onClick={() => remove('booking', r)}>حذف</button></div></td>}</tr>) : <tr><td colSpan={canManage ? 7 : 6} className="empty-cell">لا توجد حجوزات.</td></tr>}</tbody>
+        <div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>الفندق</th><th>المنصة</th><th>الإجمالي</th><th>مدفوع</th><th>كاش</th><th>الموظف</th>{canManage && <th>إجراء</th>}</tr></thead>
+          <tbody>{d.bookings.length ? d.bookings.map((r: any) => <tr key={r.id}><td>{r.booking_date}</td><td>{r.hotel_name}</td><td>{r.platform_name}</td><td>{r.total_bookings}</td><td>{r.paid_bookings}</td><td>{r.cash_bookings}</td><td>{r.employee_name}</td>{canManage && <td><div className="action-row"><button className="mini" onClick={() => openEdit('booking', r)}>تعديل</button><button className="mini mini-danger" onClick={() => remove('booking', r)}>حذف</button></div></td>}</tr>) : <tr><td colSpan={canManage ? 8 : 7} className="empty-cell">لا توجد حجوزات.</td></tr>}</tbody>
         </table></div>
       </div>
 
       <div className="panel">
         <h3>الإيرادات ({d.revenues.length})</h3>
         <div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>الحجز</th><th>الفندق</th><th>المنصة</th><th>الإجمالي</th><th>العمولة</th><th>الضريبة</th><th>الصافي</th><th>الموظف</th>{canManage && <th>إجراء</th>}</tr></thead>
-          <tbody>{d.revenues.length ? d.revenues.map((r: any) => <tr key={r.id}><td>{r.revenue_date}</td><td>{r.booking_number}</td><td>{r.hotel_name}</td><td>{r.platform}</td><td>{money(r.actual_price)}</td><td>{money(r.commission)}</td><td>{money(r.tax)}</td><td>{money(r.net_revenue)}</td><td>{r.employee_name}</td>{canManage && <td><div className="action-row"><button className="mini" onClick={() => openEdit('revenue', r)}>تعديل</button><button className="mini mini-danger" onClick={() => remove('revenue', r)}>حذف</button></div></td>}</tr>) : <tr><td colSpan={canManage ? 10 : 9} className="empty-cell">لا توجد إيرادات.</td></tr>}</tbody>
+          <tbody>{d.revenues.length ? d.revenues.map((r: any) => <tr key={r.id}><td>{r.revenue_date}</td><td>{r.booking_number}</td><td>{r.hotel_name}</td><td>{r.platform_name || r.platform}</td><td>{money(r.actual_price)}</td><td>{money(r.commission)}</td><td>{money(r.tax)}</td><td>{money(r.net_revenue)}</td><td>{r.employee_name}</td>{canManage && <td><div className="action-row"><button className="mini" onClick={() => openEdit('revenue', r)}>تعديل</button><button className="mini mini-danger" onClick={() => remove('revenue', r)}>حذف</button></div></td>}</tr>) : <tr><td colSpan={canManage ? 10 : 9} className="empty-cell">لا توجد إيرادات.</td></tr>}</tbody>
         </table></div>
       </div>
 
       <div className="panel">
         <h3>التقييمات ({d.reviews.length})</h3>
-        <div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>الحجز</th><th>الفندق</th><th>التقييم</th><th>المشاعر</th><th>الحالة</th><th>الموظف</th>{canManage && <th>إجراء</th>}</tr></thead>
-          <tbody>{d.reviews.length ? d.reviews.map((r: any) => <tr key={r.id}><td>{r.review_date}</td><td>{r.booking_number}</td><td>{r.hotel_name}</td><td>{r.rating}</td><td>{r.sentiment}</td><td>{r.status}</td><td>{r.employee_name}</td>{canManage && <td><div className="action-row"><button className="mini" onClick={() => openEdit('review', r)}>تعديل</button><button className="mini mini-danger" onClick={() => remove('review', r)}>حذف</button></div></td>}</tr>) : <tr><td colSpan={canManage ? 8 : 7} className="empty-cell">لا توجد تقييمات.</td></tr>}</tbody>
+        <div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>الحجز</th><th>الفندق</th><th>المنصة</th><th>التقييم</th><th>المشاعر</th><th>الحالة</th><th>الموظف</th>{canManage && <th>إجراء</th>}</tr></thead>
+          <tbody>{d.reviews.length ? d.reviews.map((r: any) => <tr key={r.id}><td>{r.review_date}</td><td>{r.booking_number}</td><td>{r.hotel_name}</td><td>{r.platform_name}</td><td>{r.rating}</td><td>{r.sentiment}</td><td>{r.status}</td><td>{r.employee_name}</td>{canManage && <td><div className="action-row"><button className="mini" onClick={() => openEdit('review', r)}>تعديل</button><button className="mini mini-danger" onClick={() => remove('review', r)}>حذف</button></div></td>}</tr>) : <tr><td colSpan={canManage ? 8 : 7} className="empty-cell">لا توجد تقييمات.</td></tr>}</tbody>
         </table></div>
       </div>
 
@@ -243,6 +253,7 @@ export default function Data() {
 
             {editing.type === 'booking' && <div className="form-grid modal-grid">
               <label>الفندق<select value={form.hotel_id} onChange={e => update('hotel_id', e.target.value)}>{hotelOptions.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></label>
+              <label>المنصة<select value={form.platform_id||''} onChange={e => update('platform_id', e.target.value)}><option value="">غير محدد</option>{platforms.filter(p=>p.active).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
               <label>التاريخ<input type="date" value={form.booking_date} onChange={e => update('booking_date', e.target.value)} /></label>
               <label>إجمالي الحجوزات<input type="number" min="0" value={form.total_bookings} onChange={e => update('total_bookings', e.target.value)} /></label>
               <label>الحجوزات المدفوعة<input type="number" min="0" value={form.paid_bookings} onChange={e => update('paid_bookings', e.target.value)} /></label>
@@ -252,7 +263,8 @@ export default function Data() {
             {editing.type === 'revenue' && <div className="form-grid modal-grid">
               <label>رقم الحجز<input value={form.booking_number} onChange={e => update('booking_number', e.target.value)} /></label>
               <label>الفندق<select value={form.hotel_id} onChange={e => update('hotel_id', e.target.value)}>{hotelOptions.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></label>
-              <label>المنصة<input value={form.platform} onChange={e => update('platform', e.target.value)} /></label>
+              <label>المنصة<select value={form.platform_id||''} onChange={e => { const id=e.target.value; update('platform_id', id); const p=platforms.find(x=>String(x.id)===id); if(p) update('platform', p.name) }}><option value="">غير محدد</option>{platforms.filter(p=>p.active).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+              <label>اسم المنصة القديم<input value={form.platform} onChange={e => update('platform', e.target.value)} /></label>
               <label>تاريخ الإيراد<input type="date" value={form.revenue_date} onChange={e => update('revenue_date', e.target.value)} /></label>
               <label>السعر الإجمالي<input type="number" min="0" step="0.01" value={form.actual_price} onChange={e => update('actual_price', e.target.value)} /></label>
               <label>المبلغ الخاضع للعمولة<input type="number" min="0" step="0.01" value={form.commissionable_amount} onChange={e => update('commissionable_amount', e.target.value)} /></label>
@@ -262,6 +274,7 @@ export default function Data() {
             {editing.type === 'review' && <div className="form-grid modal-grid">
               <label>رقم الحجز<input value={form.booking_number} onChange={e => update('booking_number', e.target.value)} /></label>
               <label>الفندق<select value={form.hotel_id} onChange={e => update('hotel_id', e.target.value)}>{hotelOptions.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></label>
+              <label>المنصة<select value={form.platform_id||''} onChange={e => update('platform_id', e.target.value)}><option value="">غير محدد</option>{platforms.filter(p=>p.active).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
               <label>التقييم<input type="number" min="0" max="10" step="0.1" value={form.rating} onChange={e => update('rating', e.target.value)} /></label>
               <label>المشاعر<select value={form.sentiment} onChange={e => update('sentiment', e.target.value)}><option value="Positive">Positive</option><option value="Negative">Negative</option><option value="Neutral">Neutral</option></select></label>
               <label>تاريخ التقييم<input type="date" value={form.review_date} onChange={e => update('review_date', e.target.value)} /></label>

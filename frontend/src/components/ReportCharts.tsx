@@ -108,3 +108,59 @@ export function ProgressList({
     </div>
   )
 }
+
+
+export function ComparisonDonut({
+  current,
+  previous,
+  title,
+  currentLabel = 'الحالي',
+  previousLabel = 'السابق',
+  formatValue = (v: number) => v.toLocaleString('en-US'),
+}: {
+  current: number
+  previous: number
+  title: string
+  currentLabel?: string
+  previousLabel?: string
+  formatValue?: (v: number) => string
+}) {
+  const a = n(current)
+  const b = n(previous)
+  const total = a + b
+  const currentPct = total ? Math.round((a / total) * 100) : 0
+  const gradient = total
+    ? `conic-gradient(#176aa6 0 ${currentPct}%, #8db7cf ${currentPct}% 100%)`
+    : 'conic-gradient(#dce5ec 0 100%)'
+
+  return (
+    <div className="visual-chart donut-card compact-donut">
+      <div className="visual-chart-title">{title}</div>
+      <div className="donut-wrap">
+        <div className="donut" style={{ background: gradient }}>
+          <div className="donut-center">
+            <strong>{currentPct}%</strong>
+            <span>{currentLabel}</span>
+          </div>
+        </div>
+      </div>
+      <div className="donut-legend comparison-legend">
+        <span><i className="legend-dot paid" /> {currentLabel} {formatValue(a)}</span>
+        <span><i className="legend-dot cash" /> {previousLabel} {formatValue(b)}</span>
+      </div>
+    </div>
+  )
+}
+
+
+
+export function PlatformShareChart({ title, items }: { title: string; items: { platform: string; value: number; percentage: number }[] }) {
+  const palette = ['#146db2', '#22a879', '#f59e0b', '#8b5cf6', '#ef476f', '#607d8b', '#0ea5e9', '#94a3b8']
+  const rows = Array.isArray(items) ? items.filter(x => n(x.value) > 0) : []
+  const total = rows.reduce((sum, x) => sum + n(x.value), 0)
+  return <div className="platform-chart-card">
+    <div className="visual-chart-title">{title}</div>
+    <div className="platform-stack">{rows.length ? rows.map((x, i) => <span key={`${x.platform}-${i}`} title={`${x.platform}: ${x.percentage}%`} style={{ width: `${Math.max(1, n(x.percentage))}%`, background: palette[i % palette.length] }} />) : <span style={{ width: '100%', background: '#dce5ec' }} />}</div>
+    <div className="platform-legend">{rows.length ? rows.map((x, i) => <div className="platform-legend-item" key={`${x.platform}-legend-${i}`}><span className="platform-color" style={{ background: palette[i % palette.length] }} /><span>{x.platform}</span><strong>{total ? `${n(x.percentage).toFixed(1)}%` : '0%'}</strong></div>) : <div className="chart-empty">لا توجد بيانات</div>}</div>
+  </div>
+}

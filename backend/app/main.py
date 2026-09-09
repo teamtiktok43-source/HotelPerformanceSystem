@@ -6,9 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
-from .models import Booking, Hotel, Revenue, Review, User
+from .models import Booking, Hotel, Platform, Revenue, Review, User
 from .schemas import (BookingCreate, BookingUpdate, EmployeeCreate, EmployeeUpdate, HotelCreate, HotelUpdate,
-                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate)
+                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, PlatformCreate, PlatformUpdate)
 from .auth import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from .seed import seed_defaults
 from .websocket import manager
@@ -20,29 +20,54 @@ app.add_middleware(CORSMiddleware, allow_origins=origins or ["*"], allow_credent
 
 def ensure_schema_updates():
     inspector = __import__("sqlalchemy").inspect(engine)
-    # Existing deployments created before tax support need the new columns.
     try:
         hotel_columns = {c["name"] for c in inspector.get_columns("hotels")}
         revenue_columns = {c["name"] for c in inspector.get_columns("revenues")}
+        booking_columns = {c["name"] for c in inspector.get_columns("bookings")}
+        review_columns = {c["name"] for c in inspector.get_columns("reviews")}
     except Exception:
         return
 
-    with engine.begin() as conn:
-        if "tax_rate" not in hotel_columns:
-            if engine.url.get_backend_name() == "sqlite":
-                conn.execute(text("ALTER TABLE hotels ADD COLUMN tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0"))
-            else:
-                conn.execute(text("ALTER TABLE hotels ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0"))
-        if "tax_rate" not in revenue_columns:
-            if engine.url.get_backend_name() == "sqlite":
-                conn.execute(text("ALTER TABLE revenues ADD COLUMN tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0"))
-            else:
-                conn.execute(text("ALTER TABLE revenues ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0"))
-        if "tax" not in revenue_columns:
-            if engine.url.get_backend_name() == "sqlite":
-                conn.execute(text("ALTER TABLE revenues ADD COLUMN tax NUMERIC(14, 2) NOT NULL DEFAULT 0"))
-            else:
-                conn.execute(text("ALTER TABLE revenues ADD COLUMN IF NOT EXISTS tax NUMERIC(14, 2) NOT NULL DEFAULT 0"))
+    statements = []
+    backend = engine.url.get_backend_name()
+    def add_column(table, column, ddl):
+        if backend == "sqlite":
+            statements.append(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+        else:
+            statements.append(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {ddl}")
+
+    if "tax_rate" not in hotel_columns:
+        add_column("hotels", "tax_rate", "tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0")
+    if "tax_rate" not in revenue_columns:
+        add_column("revenues", "tax_rate", "tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0")
+    if "tax" not in revenue_columns:
+        add_column("revenues", "tax", "tax NUMERIC(14, 2) NOT NULL DEFAULT 0")
+    if "platform_id" not in booking_columns:
+        add_column("bookings", "platform_id", "platform_id INTEGER")
+    if "platform_id" not in revenue_columns:
+        add_column("revenues", "platform_id", "platform_id INTEGER")
+    if "platform_id" not in review_columns:
+        add_column("reviews", "platform_id", "platform_id INTEGER")
+
+    if not statements:
+        return
+    try:
+        with engine.begin() as conn:
+            for stmt in statements:
+                conn.execute(text(stmt))
+    except Exception:
+        # Some SQLite installations may reject a subset of ALTER statements;
+        # the application remains usable and the next startup retries.
+        pass
+
+    # Map existing revenue platform text to managed platform IDs where possible.
+    try:
+        with Session(engine) as db:
+            for platform in db.query(Platform).all():
+                db.query(Revenue).filter(Revenue.platform_id.is_(None), func.lower(Revenue.platform) == func.lower(platform.name)).update({Revenue.platform_id: platform.id}, synchronize_session=False)
+            db.commit()
+    except Exception:
+        pass
 
 @app.on_event("startup")
 def startup():
@@ -50,7 +75,16 @@ def startup():
     ensure_schema_updates()
     with Session(engine) as db:
         seed_defaults(db)
+        try:
+            for platform in db.query(Platform).all():
+                db.query(Revenue).filter(Revenue.platform_id.is_(None), func.lower(Revenue.platform) == func.lower(platform.name)).update({Revenue.platform_id: platform.id}, synchronize_session=False)
+            db.commit()
+        except Exception:
+            db.rollback()
 
+
+def platform_to_dict(p: Platform):
+    return {"id": p.id, "name": p.name, "active": p.active}
 
 def hotel_to_dict(h: Hotel):
     return {"id": h.id, "name": h.name, "commission_rate": float(h.commission_rate or 0), "tax_rate": float(h.tax_rate or 0), "active": h.active}
@@ -62,13 +96,14 @@ def booking_to_dict(b: Booking):
     return {
         "id": b.id, "hotel_id": b.hotel_id, "hotel_name": b.hotel.name if b.hotel else "", "booking_date": b.booking_date.isoformat(),
         "total_bookings": b.total_bookings, "paid_bookings": b.paid_bookings, "cash_bookings": b.cash_bookings,
+        "platform_id": b.platform_id, "platform_name": b.platform.name if b.platform else ("غير محدد" if not b.platform_id else ""),
         "employee_id": b.employee_id, "employee_name": b.employee.display_name if b.employee else "", "created_at": b.created_at.isoformat(),
     }
 
 def revenue_to_dict(r: Revenue):
     return {
         "id": r.id, "booking_number": r.booking_number, "hotel_id": r.hotel_id, "hotel_name": r.hotel.name if r.hotel else "",
-        "platform": r.platform, "revenue_date": r.revenue_date.isoformat(), "actual_price": float(r.actual_price or 0),
+        "platform": r.platform, "platform_id": r.platform_id, "platform_name": r.platform_ref.name if r.platform_ref else (r.platform or "غير محدد"), "revenue_date": r.revenue_date.isoformat(), "actual_price": float(r.actual_price or 0),
         "commissionable_amount": float(r.commissionable_amount or 0), "commission_rate": float(r.commission_rate or 0),
         "commission": float(r.commission or 0), "tax_rate": float(r.tax_rate or 0), "tax": float(r.tax or 0), "net_revenue": float(r.net_revenue or 0), "employee_id": r.employee_id,
         "employee_name": r.employee.display_name if r.employee else "", "created_at": r.created_at.isoformat(),
@@ -77,7 +112,7 @@ def revenue_to_dict(r: Revenue):
 def review_to_dict(r: Review):
     return {
         "id": r.id, "booking_number": r.booking_number, "hotel_id": r.hotel_id, "hotel_name": r.hotel.name if r.hotel else "",
-        "rating": float(r.rating or 0), "comment": r.comment, "sentiment": r.sentiment, "review_date": r.review_date.isoformat(),
+        "rating": float(r.rating or 0), "comment": r.comment, "platform_id": r.platform_id, "platform_name": r.platform.name if r.platform else ("غير محدد" if not r.platform_id else ""), "sentiment": r.sentiment, "review_date": r.review_date.isoformat(),
         "proposed_action": r.proposed_action, "employee_id": r.employee_id, "employee_name": r.employee.display_name if r.employee else "",
         "status": r.status, "manager_id": r.manager_id, "manager_name": r.manager.display_name if r.manager else "",
         "manager_decided_at": r.manager_decided_at.isoformat() if r.manager_decided_at else None,
@@ -103,6 +138,41 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 @app.get("/api/auth/me")
 def me(user: User = Depends(get_current_user)):
     return user_to_dict(user)
+
+@app.get("/api/platforms")
+def platforms(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return [platform_to_dict(p) for p in db.query(Platform).order_by(Platform.name).all()]
+
+@app.post("/api/platforms", status_code=201)
+def create_platform(payload: PlatformCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Admin or manager required")
+    name = payload.name.strip()
+    if db.query(Platform).filter(func.lower(Platform.name) == name.lower()).first():
+        raise HTTPException(400, "Platform already exists")
+    p = Platform(name=name, active=payload.active)
+    db.add(p); db.commit(); db.refresh(p)
+    return platform_to_dict(p)
+
+@app.patch("/api/platforms/{platform_id}")
+def update_platform(platform_id: int, payload: PlatformUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Admin or manager required")
+    p = db.get(Platform, platform_id)
+    if not p:
+        raise HTTPException(404, "Platform not found")
+    if payload.name is not None:
+        name = payload.name.strip()
+        if not name:
+            raise HTTPException(400, "Platform name cannot be empty")
+        dup = db.query(Platform).filter(func.lower(Platform.name) == name.lower(), Platform.id != platform_id).first()
+        if dup:
+            raise HTTPException(400, "Platform already exists")
+        p.name = name
+    if payload.active is not None:
+        p.active = payload.active
+    db.commit(); db.refresh(p)
+    return platform_to_dict(p)
 
 @app.get("/api/hotels")
 def hotels(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -192,21 +262,25 @@ async def create_booking(payload: BookingCreate, db: Session = Depends(get_db), 
     hotel = db.get(Hotel, payload.hotel_id)
     if not hotel or not hotel.active: raise HTTPException(400, "Invalid hotel")
     employee_id = payload.employee_id or user.id
+    platform_id = payload.platform_id
+    if platform_id is not None and not db.get(Platform, platform_id):
+        raise HTTPException(400, "Invalid platform")
     if payload.paid_bookings > payload.total_bookings: raise HTTPException(400, "Paid bookings cannot exceed total bookings")
     b = Booking(hotel_id=payload.hotel_id, booking_date=payload.booking_date, total_bookings=payload.total_bookings,
-                paid_bookings=payload.paid_bookings, cash_bookings=payload.total_bookings-payload.paid_bookings, employee_id=employee_id)
+                paid_bookings=payload.paid_bookings, cash_bookings=payload.total_bookings-payload.paid_bookings, platform_id=platform_id, employee_id=employee_id)
     db.add(b); db.commit(); db.refresh(b)
     await manager.broadcast({"type": "booking.created", "id": b.id})
     return booking_to_dict(b)
 
 @app.get("/api/bookings")
 def list_bookings(start: date | None = None, end: date | None = None, hotel_id: int | None = None,
-                  employee_id: int | None = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+                  employee_id: int | None = None, platform_id: int | None = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = db.query(Booking)
     if start: q = q.filter(Booking.booking_date >= start)
     if end: q = q.filter(Booking.booking_date <= end)
     if hotel_id: q = q.filter(Booking.hotel_id == hotel_id)
     if employee_id: q = q.filter(Booking.employee_id == employee_id)
+    if platform_id: q = q.filter(Booking.platform_id == platform_id)
     return [booking_to_dict(b) for b in q.order_by(Booking.booking_date.desc(), Booking.id.desc()).all()]
 
 @app.patch("/api/bookings/{booking_id}")
@@ -221,6 +295,9 @@ async def update_booking(booking_id: int, payload: BookingUpdate, db: Session = 
     if not hotel or not hotel.active:
         raise HTTPException(400, "Invalid hotel")
     employee_id = payload.employee_id if payload.employee_id is not None else b.employee_id
+    platform_id = payload.platform_id if payload.platform_id is not None else b.platform_id
+    if platform_id is not None and not db.get(Platform, platform_id):
+        raise HTTPException(400, "Invalid platform")
     if not db.get(User, employee_id):
         raise HTTPException(400, "Invalid employee")
     total = payload.total_bookings if payload.total_bookings is not None else b.total_bookings
@@ -233,6 +310,7 @@ async def update_booking(booking_id: int, payload: BookingUpdate, db: Session = 
     b.paid_bookings = paid
     b.cash_bookings = total - paid
     b.employee_id = employee_id
+    b.platform_id = platform_id
     db.commit(); db.refresh(b)
     await manager.broadcast({"type": "booking.updated", "id": b.id})
     return booking_to_dict(b)
@@ -252,12 +330,15 @@ async def delete_booking(booking_id: int, db: Session = Depends(get_db), user: U
 async def create_revenue(payload: RevenueCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     hotel = db.get(Hotel, payload.hotel_id)
     if not hotel or not hotel.active: raise HTTPException(400, "Invalid hotel")
+    platform_id = payload.platform_id
+    if platform_id is not None and not db.get(Platform, platform_id):
+        raise HTTPException(400, "Invalid platform")
     rate = Decimal(hotel.commission_rate or 0)
     tax_rate = Decimal(hotel.tax_rate or 0)
     commission = (payload.commissionable_amount * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     tax = (payload.actual_price * tax_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     net = (payload.actual_price - commission - tax).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    r = Revenue(booking_number=payload.booking_number.strip(), hotel_id=payload.hotel_id, platform=payload.platform.strip(), revenue_date=payload.revenue_date,
+    r = Revenue(booking_number=payload.booking_number.strip(), hotel_id=payload.hotel_id, platform=(db.get(Platform, platform_id).name if platform_id else payload.platform.strip()), platform_id=platform_id, revenue_date=payload.revenue_date,
                 actual_price=payload.actual_price, commissionable_amount=payload.commissionable_amount, commission_rate=rate,
                 commission=commission, tax_rate=tax_rate, tax=tax, net_revenue=net, employee_id=payload.employee_id or user.id)
     db.add(r); db.commit(); db.refresh(r)
@@ -265,13 +346,14 @@ async def create_revenue(payload: RevenueCreate, db: Session = Depends(get_db), 
     return revenue_to_dict(r)
 
 @app.get("/api/revenue")
-def list_revenue(start: date | None = None, end: date | None = None, hotel_id: int | None = None, employee_id: int | None = None,
+def list_revenue(start: date | None = None, end: date | None = None, hotel_id: int | None = None, employee_id: int | None = None, platform_id: int | None = None,
                 db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = db.query(Revenue)
     if start: q = q.filter(Revenue.revenue_date >= start)
     if end: q = q.filter(Revenue.revenue_date <= end)
     if hotel_id: q = q.filter(Revenue.hotel_id == hotel_id)
     if employee_id: q = q.filter(Revenue.employee_id == employee_id)
+    if platform_id: q = q.filter(Revenue.platform_id == platform_id)
     return [revenue_to_dict(r) for r in q.order_by(Revenue.revenue_date.desc(), Revenue.id.desc()).all()]
 
 @app.patch("/api/revenue/{revenue_id}")
@@ -286,11 +368,17 @@ async def update_revenue(revenue_id: int, payload: RevenueUpdate, db: Session = 
     if not hotel or not hotel.active:
         raise HTTPException(400, "Invalid hotel")
     employee_id = payload.employee_id if payload.employee_id is not None else r.employee_id
+    platform_id = payload.platform_id if payload.platform_id is not None else r.platform_id
+    if platform_id is not None and not db.get(Platform, platform_id):
+        raise HTTPException(400, "Invalid platform")
     if not db.get(User, employee_id):
         raise HTTPException(400, "Invalid employee")
     if payload.booking_number is not None: r.booking_number = payload.booking_number.strip()
     r.hotel_id = hotel_id
     if payload.platform is not None: r.platform = payload.platform.strip()
+    if platform_id is not None:
+        r.platform_id = platform_id
+        r.platform = db.get(Platform, platform_id).name
     if payload.revenue_date is not None: r.revenue_date = payload.revenue_date
     if payload.actual_price is not None: r.actual_price = payload.actual_price
     if payload.commissionable_amount is not None: r.commissionable_amount = payload.commissionable_amount
@@ -323,7 +411,10 @@ async def delete_revenue(revenue_id: int, db: Session = Depends(get_db), user: U
 async def create_review(payload: ReviewCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     hotel = db.get(Hotel, payload.hotel_id)
     if not hotel or not hotel.active: raise HTTPException(400, "Invalid hotel")
-    rv = Review(booking_number=payload.booking_number.strip(), hotel_id=payload.hotel_id, rating=payload.rating, comment=payload.comment.strip(),
+    platform_id = payload.platform_id
+    if platform_id is not None and not db.get(Platform, platform_id):
+        raise HTTPException(400, "Invalid platform")
+    rv = Review(booking_number=payload.booking_number.strip(), hotel_id=payload.hotel_id, platform_id=platform_id, rating=payload.rating, comment=payload.comment.strip(),
                 sentiment=payload.sentiment, review_date=payload.review_date, proposed_action=payload.proposed_action.strip(),
                 employee_id=payload.employee_id or user.id, status="Pending")
     db.add(rv); db.commit(); db.refresh(rv)
@@ -332,7 +423,7 @@ async def create_review(payload: ReviewCreate, db: Session = Depends(get_db), us
 
 @app.get("/api/reviews")
 def list_reviews(start: date | None = None, end: date | None = None, hotel_id: int | None = None,
-                 status: str | None = None, employee_id: int | None = None,
+                 status: str | None = None, employee_id: int | None = None, platform_id: int | None = None,
                  db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = db.query(Review)
     if start: q = q.filter(Review.review_date >= start)
@@ -340,6 +431,7 @@ def list_reviews(start: date | None = None, end: date | None = None, hotel_id: i
     if hotel_id: q = q.filter(Review.hotel_id == hotel_id)
     if status: q = q.filter(Review.status == status)
     if employee_id: q = q.filter(Review.employee_id == employee_id)
+    if platform_id: q = q.filter(Review.platform_id == platform_id)
     return [review_to_dict(r) for r in q.order_by(Review.review_date.desc(), Review.id.desc()).all()]
 
 @app.patch("/api/reviews/{review_id}")
@@ -354,10 +446,14 @@ async def update_review(review_id: int, payload: ReviewUpdate, db: Session = Dep
     if not hotel or not hotel.active:
         raise HTTPException(400, "Invalid hotel")
     employee_id = payload.employee_id if payload.employee_id is not None else rv.employee_id
+    platform_id = payload.platform_id if payload.platform_id is not None else rv.platform_id
+    if platform_id is not None and not db.get(Platform, platform_id):
+        raise HTTPException(400, "Invalid platform")
     if not db.get(User, employee_id):
         raise HTTPException(400, "Invalid employee")
     if payload.booking_number is not None: rv.booking_number = payload.booking_number.strip()
     rv.hotel_id = hotel_id
+    rv.platform_id = platform_id
     if payload.rating is not None: rv.rating = payload.rating
     if payload.comment is not None: rv.comment = payload.comment.strip()
     if payload.sentiment is not None: rv.sentiment = payload.sentiment
@@ -438,6 +534,24 @@ def dashboard(start: date | None = None, end: date | None = None, hotel_id: int 
     sentiment_chart = [{"name": k, "value": v} for k, v in sorted(sentiment.items())] or [{"name": "Positive", "value": 0}, {"name": "Negative", "value": 0}]
     revenue_chart = [{"name": k, "value": round(v, 2)} for k, v in sorted(revenue_by_hotel.items(), key=lambda kv: kv[1], reverse=True)[:10]] or [{"name": "No Data", "value": 0}]
     top_hotel = max(revenue_by_hotel.items(), key=lambda x: x[1])[0] if revenue_by_hotel else "-"
+    def platform_breakdown(records, value_getter):
+        totals = {}
+        for rec in records:
+            platform_name = (rec.platform.name if hasattr(rec, "platform") and getattr(rec, "platform", None) else None)
+            if not platform_name and hasattr(rec, "platform_ref") and getattr(rec, "platform_ref", None):
+                platform_name = rec.platform_ref.name
+            if not platform_name and isinstance(rec, Revenue):
+                platform_name = rec.platform or "غير محدد"
+            platform_name = platform_name or "غير محدد"
+            totals[platform_name] = totals.get(platform_name, 0) + float(value_getter(rec) or 0)
+        total = sum(totals.values())
+        return [{"platform": k, "value": round(v, 2), "percentage": round((v / total) * 100, 1) if total else 0} for k, v in sorted(totals.items(), key=lambda kv: kv[1], reverse=True)]
+
+    platform_chart = {
+        "bookings": platform_breakdown(bookings, lambda x: x.total_bookings),
+        "reviews": platform_breakdown(reviews, lambda x: 1),
+        "revenue": platform_breakdown(revenues, lambda x: x.actual_price),
+    }
     hotel_perf = []
     grouped = {}
     for b in bookings: grouped.setdefault(b.hotel.name, {"bookings": 0, "paid": 0, "cash": 0}); grouped[b.hotel.name]["bookings"] += b.total_bookings; grouped[b.hotel.name]["paid"] += b.paid_bookings; grouped[b.hotel.name]["cash"] += b.cash_bookings
@@ -446,36 +560,125 @@ def dashboard(start: date | None = None, end: date | None = None, hotel_id: int 
         "filters": {"start": start.isoformat(), "end": end.isoformat(), "hotel_id": hotel_id},
         "kpis": {"reviews": len(reviews), "bookings": total_bookings, "paid_bookings": paid_bookings, "cash_bookings": cash_bookings,
                  "actual_revenue": float(actual_revenue), "commission": float(commission), "tax": float(tax), "net_revenue": float(net), "average_rating": round(float(avg_rating), 2)},
-        "revenue_by_hotel": revenue_chart, "paid_cash": paid_cash, "sentiment": sentiment_chart,
+        "revenue_by_hotel": revenue_chart, "paid_cash": paid_cash, "sentiment": sentiment_chart, "platform_breakdown": platform_chart,
         "top_hotel": top_hotel, "hotel_performance": hotel_perf,
     }
 
 @app.get("/api/monthly-report")
-def monthly_report(month: int = Query(..., ge=1, le=12), year: int = Query(..., ge=2000, le=2100), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    start = date(year, month, 1)
-    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    bookings = db.query(Booking).filter(Booking.booking_date >= start, Booking.booking_date < end).all()
-    revenues = db.query(Revenue).filter(Revenue.revenue_date >= start, Revenue.revenue_date < end).all()
-    reviews = db.query(Review).filter(Review.review_date >= start, Review.review_date < end).all()
-    hotels = db.query(Hotel).all()
-    rows = []
-    for h in hotels:
-        hb = [b for b in bookings if b.hotel_id == h.id]
-        hr = [r for r in revenues if r.hotel_id == h.id]
-        hv = [v for v in reviews if v.hotel_id == h.id]
-        rows.append({"hotel_name": h.name, "bookings": sum(b.total_bookings for b in hb), "paid": sum(b.paid_bookings for b in hb),
-                     "cash": sum(b.cash_bookings for b in hb), "actual_revenue": round(sum(float(r.actual_price) if r.actual_price is not None else 0.0 for r in hr), 2),
-                     "commission": round(sum(float(r.commission) if r.commission is not None else 0.0 for r in hr), 2),
-                     "tax": round(sum(float(r.tax) if getattr(r, "tax", None) is not None else 0.0 for r in hr), 2),
-                     "net_revenue": round(sum(float(r.net_revenue) if r.net_revenue is not None else 0.0 for r in hr), 2),
-                     "review_count": len(hv), "average_rating": round(sum(float(v.rating or 0) for v in hv)/len(hv), 2) if hv else 0})
-    rows.sort(key=lambda x: x["net_revenue"], reverse=True)
-    return {"year": year, "month": month, "start": start.isoformat(), "end": end.isoformat(), "rows": rows,
-            "totals": {"bookings": sum(r["bookings"] for r in rows), "paid": sum(r["paid"] for r in rows), "cash": sum(r["cash"] for r in rows),
-                       "actual_revenue": round(sum(r["actual_revenue"] for r in rows), 2), "commission": round(sum(r["commission"] for r in rows), 2),
-                       "tax": round(sum(r["tax"] for r in rows), 2),
-                       "net_revenue": round(sum(r["net_revenue"] for r in rows), 2), "reviews": sum(r["review_count"] for r in rows),
-                       "average_rating": round(sum(r["average_rating"] for r in rows if r["review_count"])/len([r for r in rows if r["review_count"]]), 2) if any(r["review_count"] for r in rows) else 0}}
+def monthly_report(
+    month: int = Query(..., ge=1, le=12),
+    year: int = Query(..., ge=2000, le=2100),
+    hotel_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    def month_bounds(y: int, m: int):
+        start = date(y, m, 1)
+        if m == 12:
+            end = date(y + 1, 1, 1)
+        else:
+            end = date(y, m + 1, 1)
+        return start, end
+
+    def previous_month(y: int, m: int):
+        return (y - 1, 12) if m == 1 else (y, m - 1)
+
+    def build_rows(y: int, m: int):
+        start, end = month_bounds(y, m)
+        bq = db.query(Booking).filter(Booking.booking_date >= start, Booking.booking_date < end)
+        rq = db.query(Revenue).filter(Revenue.revenue_date >= start, Revenue.revenue_date < end)
+        vq = db.query(Review).filter(Review.review_date >= start, Review.review_date < end)
+        if hotel_id:
+            bq = bq.filter(Booking.hotel_id == hotel_id)
+            rq = rq.filter(Revenue.hotel_id == hotel_id)
+            vq = vq.filter(Review.hotel_id == hotel_id)
+
+        bookings = bq.all()
+        revenues = rq.all()
+        reviews = vq.all()
+
+        hotels_query = db.query(Hotel).order_by(Hotel.name)
+        if hotel_id:
+            hotels_query = hotels_query.filter(Hotel.id == hotel_id)
+        hotels = hotels_query.all()
+
+        rows = []
+        for h in hotels:
+            hb = [b for b in bookings if b.hotel_id == h.id]
+            hr = [r for r in revenues if r.hotel_id == h.id]
+            hv = [v for v in reviews if v.hotel_id == h.id]
+            rows.append({
+                "hotel_id": h.id,
+                "hotel_name": h.name,
+                "bookings": sum(b.total_bookings for b in hb),
+                "paid": sum(b.paid_bookings for b in hb),
+                "cash": sum(b.cash_bookings for b in hb),
+                "actual_revenue": round(sum(float(r.actual_price or 0) for r in hr), 2),
+                "commission": round(sum(float(r.commission or 0) for r in hr), 2),
+                "tax": round(sum(float(r.tax or 0) for r in hr), 2),
+                "net_revenue": round(sum(float(r.net_revenue or 0) for r in hr), 2),
+                "review_count": len(hv),
+                "average_rating": round(sum(float(v.rating or 0) for v in hv) / len(hv), 2) if hv else 0,
+            })
+        rows.sort(key=lambda x: x["net_revenue"], reverse=True)
+
+        platform_breakdown = {
+            "bookings": [], "reviews": [], "revenue": []
+        }
+        def _platform_group(records, value_getter):
+            grouped = {}
+            for rec in records:
+                name = None
+                if isinstance(rec, Revenue):
+                    name = rec.platform_ref.name if rec.platform_ref else (rec.platform or "غير محدد")
+                else:
+                    rel = getattr(rec, "platform", None)
+                    name = rel.name if rel else "غير محدد"
+                grouped[name] = grouped.get(name, 0) + float(value_getter(rec) or 0)
+            total = sum(grouped.values())
+            return [{"platform": k, "value": round(v,2), "percentage": round((v/total)*100,1) if total else 0} for k,v in sorted(grouped.items(), key=lambda kv: kv[1], reverse=True)]
+        platform_breakdown["bookings"] = _platform_group(bookings, lambda x:x.total_bookings)
+        platform_breakdown["reviews"] = _platform_group(reviews, lambda x:1)
+        platform_breakdown["revenue"] = _platform_group(revenues, lambda x:x.actual_price)
+
+        totals = {
+            "bookings": sum(r["bookings"] for r in rows),
+            "paid": sum(r["paid"] for r in rows),
+            "cash": sum(r["cash"] for r in rows),
+            "actual_revenue": round(sum(r["actual_revenue"] for r in rows), 2),
+            "commission": round(sum(r["commission"] for r in rows), 2),
+            "tax": round(sum(r["tax"] for r in rows), 2),
+            "net_revenue": round(sum(r["net_revenue"] for r in rows), 2),
+            "reviews": sum(r["review_count"] for r in rows),
+            "average_rating": round(
+                sum(r["average_rating"] for r in rows if r["review_count"])
+                / len([r for r in rows if r["review_count"]]), 2
+            ) if any(r["review_count"] for r in rows) else 0,
+        }
+        return {"rows": rows, "totals": totals, "platform_breakdown": platform_breakdown, "start": start.isoformat(), "end": end.isoformat()}
+
+    previous_year, previous_month_number = previous_month(year, month)
+    current = build_rows(year, month)
+    previous = build_rows(previous_year, previous_month_number)
+
+    return {
+        "year": year,
+        "month": month,
+        "start": current["start"],
+        "end": current["end"],
+        "hotel_id": hotel_id,
+        "rows": current["rows"],
+        "totals": current["totals"],
+        "previous": {
+            "year": previous_year,
+            "month": previous_month_number,
+            "start": previous["start"],
+            "end": previous["end"],
+            "rows": previous["rows"],
+            "totals": previous["totals"],
+            "platform_breakdown": previous["platform_breakdown"],
+        },
+    }
 
 @app.get("/api/data")
 def all_data(db: Session = Depends(get_db), user: User = Depends(get_current_user)):

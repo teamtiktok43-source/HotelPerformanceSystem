@@ -14,6 +14,13 @@ class User(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+class Platform(Base):
+    __tablename__ = "platforms"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
 class Hotel(Base):
     __tablename__ = "hotels"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -30,9 +37,11 @@ class Booking(Base):
     total_bookings: Mapped[int] = mapped_column(Integer, default=0)
     paid_bookings: Mapped[int] = mapped_column(Integer, default=0)
     cash_bookings: Mapped[int] = mapped_column(Integer, default=0)
+    platform_id: Mapped[int | None] = mapped_column(ForeignKey("platforms.id"), index=True, nullable=True)
     employee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     hotel: Mapped["Hotel"] = relationship()
+    platform: Mapped["Platform"] = relationship()
     employee: Mapped["User"] = relationship()
 
 class Revenue(Base):
@@ -41,6 +50,7 @@ class Revenue(Base):
     booking_number: Mapped[str] = mapped_column(String(120), index=True)
     hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"), index=True)
     platform: Mapped[str] = mapped_column(String(80), default="Direct")
+    platform_id: Mapped[int | None] = mapped_column(ForeignKey("platforms.id"), index=True, nullable=True)
     revenue_date: Mapped[date] = mapped_column(Date, index=True)
     actual_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
     commissionable_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
@@ -52,6 +62,7 @@ class Revenue(Base):
     employee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     hotel: Mapped["Hotel"] = relationship()
+    platform_ref: Mapped["Platform"] = relationship(foreign_keys=[platform_id])
     employee: Mapped["User"] = relationship()
 
 class Review(Base):
@@ -63,6 +74,7 @@ class Review(Base):
     comment: Mapped[str] = mapped_column(Text, default="")
     sentiment: Mapped[str] = mapped_column(String(30), default="Positive")
     review_date: Mapped[date] = mapped_column(Date, index=True)
+    platform_id: Mapped[int | None] = mapped_column(ForeignKey("platforms.id"), index=True, nullable=True)
     proposed_action: Mapped[str] = mapped_column(Text, default="")
     employee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     status: Mapped[str] = mapped_column(String(30), default="Pending", index=True)
@@ -70,5 +82,6 @@ class Review(Base):
     manager_decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     hotel: Mapped["Hotel"] = relationship()
+    platform: Mapped["Platform"] = relationship(foreign_keys=[platform_id])
     employee: Mapped["User"] = relationship(foreign_keys=[employee_id])
     manager: Mapped["User"] = relationship(foreign_keys=[manager_id])
