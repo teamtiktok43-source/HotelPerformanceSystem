@@ -3,7 +3,7 @@
 @media(max-width:1200px){.stats{grid-template-columns:repeat(4,1fr)}.chart-grid{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:850px){.sidebar{width:86px}.brand strong,.brand small,nav a{font-size:0}nav a{height:44px;position:relative}.main{padding:0 10px}.quick-grid,.chart-grid,.report-layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}@media(max-width:580px){header{align-items:flex-start}
 .creator-credit{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:13px;font-weight:700;letter-spacing:.1px;color:#47749d;white-space:nowrap;pointer-events:none;user-select:none;opacity:.86}
 @media (max-width:900px){.creator-credit{position:static;transform:none;margin-inline:auto;font-size:12px}}.page-head{flex-direction:column}.form-grid{grid-template-columns:1fr}.form-grid .span-2{grid-column:auto}.stats{grid-template-columns:1fr 1fr}.filters label{min-width:100%}}
-@media print{body{background:#fff}.sidebar,header,.no-print,.login-page{display:none!important}.main{padding:0}.page{max-width:none}.panel,.form-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid}.print-friendly{break-inside:avoid}.chart-grid,.report-layout{grid-template-columns:1fr 1fr}.stat-card{border:1px solid #ccc}.stats{grid-template-columns:repeat(4,1fr)}table{min-width:0;font-size:10px}th,td{padding:5px}.page-head{margin-bottom:8px}.page-head h2{font-size:20px}}
+
 
 .table-input {
   width: 100%;
@@ -44,25 +44,7 @@
   .dashboard-chart-grid,.report-chart-grid { grid-template-columns:1fr; }
 }
 
-@media print {
-  body { background:#fff; }
-  .main { padding:0; }
-  .page { width:100%; max-width:none; }
-  .panel, .form-card, .stat-card { box-shadow:none; border:1px solid #cfd6dd; }
-  .dashboard-chart-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap:8px; }
-  .report-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap:8px; }
-  .chart-panel { break-inside:avoid; page-break-inside:avoid; }
-  .chart-panel .recharts-responsive-container { height:230px !important; }
-  .stats { grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
-  .stat-card { min-height:70px; padding:9px; }
-  .stat-value { font-size:18px; }
-  .stat-title { font-size:10px; }
-  table { min-width:0; font-size:9px; }
-  th,td { padding:4px 5px; }
-  .panel { margin-bottom:8px; }
-  .print-friendly { break-inside:auto; page-break-inside:auto; }
-  .report-section-title { margin-bottom:5px; }
-}
+
 
 .mini-danger { color:#b42318; border-color:#e7b9b4; }
 .modal-backdrop { position:fixed; inset:0; background:rgba(15,35,55,.45); display:grid; place-items:center; padding:20px; z-index:1000; }
@@ -115,11 +97,7 @@
   .chart-panel-narrow .recharts-responsive-container,
   .report-chart-grid .chart-panel-narrow .recharts-responsive-container { max-width: 100%; }
 }
-@media print {
-  .chart-panel-narrow { min-height: 235px; }
-  .chart-panel-narrow .recharts-responsive-container,
-  .report-chart-grid .chart-panel-narrow .recharts-responsive-container { max-width: 430px; }
-}
+
 
 /* Professional compact report charts inspired by the supplied references */
 .visual-chart-grid { align-items: stretch; }
@@ -168,19 +146,7 @@
 @media (max-width: 900px) {
   .monthly-visual-grid { grid-template-columns: 1fr; }
 }
-@media print {
-  .visual-chart { min-height: 185px; padding: 10px 12px; break-inside: avoid; page-break-inside: avoid; }
-  .visual-chart-title { font-size: 13px; margin-bottom: 8px; }
-  .bar-row { grid-template-columns: 105px minmax(70px, 1fr) 55px; gap: 6px; }
-  .bar-label, .bar-value, .progress-head, .donut-legend { font-size: 9px; }
-  .bar-track, .progress-track { height: 8px; }
-  .donut { width: 96px; height: 96px; }
-  .donut::before { width: 62px; height: 62px; }
-  .donut-center strong { font-size: 18px; }
-  .donut-center span { font-size: 8px; }
-  .dashboard-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .monthly-visual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-}
+
 
 .month-delete-panel{border-color:#f0c7c3}.month-delete-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}.month-delete-head h3{margin:0 0 4px}.month-delete-head p{margin:0;color:#7a8796;font-size:13px}.danger-badge{background:#fff1f0;color:#b42318;border:1px solid #f0c7c3;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;white-space:nowrap}.month-delete-controls{display:grid;grid-template-columns:220px 220px auto;gap:14px;align-items:end;margin-top:14px}.month-delete-controls label{display:flex;flex-direction:column;gap:6px;font-weight:700;color:#334155}.month-delete-controls select{border:1px solid #cfd9e4;border-radius:9px;padding:10px;background:#fff;color:#111827}.btn.danger{background:#b42318;color:#fff}.btn.danger:hover{background:#941b12}.btn.danger:disabled{opacity:.65;cursor:not-allowed}
 @media(max-width:850px){.month-delete-controls{grid-template-columns:1fr 1fr}.month-delete-controls .btn{grid-column:span 2}.month-delete-head{flex-direction:column}}
@@ -241,27 +207,7 @@
   .monthly-section-head { flex-direction:column; align-items:flex-start; }
 }
 
-@media print {
-  @page { size:auto; margin:10mm; }
-  .monthly-chart-section, .monthly-donut-section { box-shadow:none; padding:8px 9px; margin-bottom:7px; }
-  .monthly-chart-pair {
-    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-    gap:7px;
-  }
-  .monthly-donut-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
-  .monthly-chart-pair > .visual-chart { min-height:135px; }
-  .monthly-donut-section .visual-chart { min-height:135px; }
-  .monthly-section-head h3 { font-size:12px; }
-  .monthly-section-head span, .detail-period-note { font-size:8px; }
-  .monthly-detail-panel {
-    break-before:page;
-    page-break-before:always;
-    margin-top:0;
-  }
-  .monthly-detail-table { font-size:8px; }
-  .monthly-detail-table th, .monthly-detail-table td { padding:3px 4px; }
-  .monthly-detail-table th:first-child, .monthly-detail-table td:first-child { width:22%; }
-}
+
 
 
 /* Platform management + analytics */
@@ -302,7 +248,7 @@
 
 @media(max-width:1000px){ .platform-chart-grid { grid-template-columns:1fr; } }
 @media(max-width:850px){ .platform-section-head { flex-direction:column; align-items:flex-start; } .platform-add-grid { grid-template-columns:1fr; } }
-@media print { .platform-section { box-shadow:none; padding:8px; } .platform-chart-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; } .platform-chart-card { min-height:115px; padding:8px; } .platform-stack { height:11px; } .platform-legend-item { font-size:8px; } .platform-section-head h3 { font-size:11px; } .platform-section-head p { font-size:7px; } }
+
 
 /* V14 premium visual refresh */
 .home-hero{
@@ -389,11 +335,7 @@
 @media(max-width:1280px){.stats{grid-template-columns:repeat(4,minmax(150px,1fr))}.home-hero h2{font-size:30px}}
 @media(max-width:900px){.home-hero{min-height:155px;padding:22px}.home-hero-content{max-width:100%}.home-hero-date{display:none}.home-hero h2{font-size:27px}.stats{grid-template-columns:repeat(2,minmax(150px,1fr))}}
 @media(max-width:580px){.home-hero{min-height:140px;border-radius:16px;padding:18px}.home-hero h2{font-size:23px}.home-hero p{font-size:12px}.home-hero-eyebrow{font-size:9px;letter-spacing:2px}.stats{grid-template-columns:1fr 1fr;gap:8px}.stat-card-premium{min-height:116px;padding:11px}.stat-icon{width:34px;height:34px}.stat-icon svg{width:20px;height:20px}}
-@media print{
-  .home-hero{min-height:105px;box-shadow:none;background-position:center;padding:16px 18px;border-radius:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .home-hero h2{font-size:20px}.home-hero p{font-size:9px}.home-hero-eyebrow{font-size:7px}.home-hero-date{min-width:140px;padding:8px 10px}.home-hero-date strong{font-size:9px}
-  .stat-card-premium{min-height:85px;padding:8px 9px}.stat-card-premium .stat-value{font-size:16px}.stat-icon{width:28px;height:28px}.stat-icon svg{width:16px;height:16px}.stat-sparkline{height:16px}.stat-change{font-size:8px}
-}
+
 
 .quick-card > span{
   width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
@@ -509,189 +451,291 @@
 
 
 /* Monthly report print layout — deterministic 3-stage pagination */
+
+/* =========================================================
+   MONTHLY REPORT PRINT SYSTEM
+   Single authoritative print rules. These rules intentionally
+   live at the end of the stylesheet so they cannot be overridden.
+   ========================================================= */
+@page {
+  size: A4 landscape;
+  margin: 7mm;
+}
+
 @media print {
+  html,
+  body,
+  #root {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow: visible !important;
+  }
+
+  .app {
+    display: block !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    direction: rtl !important;
+  }
+
+  .sidebar,
+  header,
+  .no-print,
+  .login-page,
+  .toast,
+  .creator-credit {
+    display: none !important;
+  }
+
+  .main {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    direction: rtl !important;
+  }
+
+  .page,
   .monthly-report-page {
+    display: block !important;
     width: 100% !important;
     max-width: none !important;
+    min-width: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  .monthly-report-page .monthly-chart-section,
-  .monthly-report-page .monthly-donut-section,
-  .monthly-report-page .monthly-detail-panel {
+  .monthly-report-page {
+    direction: rtl !important;
+  }
+
+  .monthly-report-page .page-head {
+    display: block !important;
+    margin: 0 0 5mm !important;
+    padding: 0 !important;
+  }
+
+  .monthly-report-page .page-head h2 {
+    font-size: 18px !important;
+    margin: 0 !important;
+  }
+
+  .monthly-report-page .page-head p {
+    font-size: 9px !important;
+    margin: 1mm 0 0 !important;
+  }
+
+  .stats {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    gap: 5px !important;
+    margin: 0 0 7px !important;
+  }
+
+  .stat-card {
+    min-width: 0 !important;
+    min-height: 58px !important;
+    padding: 6px 7px !important;
+    border: 1px solid #cfd6dd !important;
+    border-radius: 7px !important;
+    box-shadow: none !important;
+  }
+
+  .stat-title {
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+  }
+
+  .stat-value {
+    font-size: 15px !important;
+    margin-top: 4px !important;
+    line-height: 1.1 !important;
+  }
+
+  .monthly-chart-section,
+  .monthly-donut-section,
+  .monthly-detail-panel,
+  .panel.print-friendly,
+  .form-card {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 0 7px !important;
+    padding: 7px 8px !important;
+    border: 1px solid #cfd6dd !important;
+    border-radius: 7px !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  .monthly-section-head {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    margin: 0 0 5px !important;
+    gap: 8px !important;
+  }
+
+  .monthly-section-head h3 {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+  }
+
+  .monthly-section-head span {
+    font-size: 7px !important;
+    line-height: 1.2 !important;
+  }
+
+  .monthly-chart-pair {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    gap: 6px !important;
+    align-items: stretch !important;
+  }
+
+  .monthly-chart-pair > .visual-chart,
+  .monthly-visual-grid > .visual-chart,
+  .monthly-platform-grid > .visual-chart {
+    min-width: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
 
-  .monthly-report-page .stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 6px !important;
-    margin-bottom: 7px !important;
-  }
-
-  .monthly-report-page .stat-card-premium,
-  .monthly-report-page .stat-card {
-    min-height: 66px !important;
-    padding: 6px 7px !important;
-  }
-
-  .monthly-report-page .stat-card-premium .stat-value {
-    font-size: 14px !important;
-    margin-top: 4px !important;
-  }
-
-  .monthly-report-page .stat-card-premium .stat-title {
-    font-size: 8px !important;
-  }
-
-  .monthly-report-page .stat-icon {
-    width: 23px !important;
-    height: 23px !important;
-  }
-
-  .monthly-report-page .stat-icon svg {
-    width: 13px !important;
-    height: 13px !important;
-  }
-
-  .monthly-report-page .monthly-chart-section,
-  .monthly-report-page .monthly-donut-section {
-    padding: 5px 6px !important;
-    margin-bottom: 5px !important;
-    border-radius: 8px !important;
-  }
-
-  .monthly-report-page .monthly-section-head {
-    margin-bottom: 4px !important;
+  .monthly-donut-grid,
+  .monthly-platform-grid {
+    display: grid !important;
+    width: 100% !important;
+    min-width: 0 !important;
     gap: 6px !important;
   }
 
-  .monthly-report-page .monthly-section-head h3 {
-    font-size: 10px !important;
-  }
-
-  .monthly-report-page .monthly-section-head span,
-  .monthly-report-page .detail-period-note {
-    font-size: 7px !important;
-  }
-
-  .monthly-report-page .monthly-chart-pair {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-    gap: 5px !important;
-  }
-
-  .monthly-report-page .monthly-chart-pair > .visual-chart {
-    min-height: 105px !important;
-    padding: 6px 7px !important;
-    border-radius: 8px !important;
-  }
-
-  .monthly-report-page .visual-chart-title {
-    font-size: 9px !important;
-    margin-bottom: 4px !important;
-  }
-
-  .monthly-report-page .bar-list {
-    gap: 3px !important;
-  }
-
-  .monthly-report-page .bar-row {
-    grid-template-columns: 90px minmax(45px, 1fr) 42px !important;
-    gap: 4px !important;
-  }
-
-  .monthly-report-page .bar-label,
-  .monthly-report-page .bar-value {
-    font-size: 7px !important;
-  }
-
-  .monthly-report-page .bar-track {
-    height: 6px !important;
-  }
-
-  .monthly-report-page .chart-empty {
-    padding: 15px 0 !important;
-    font-size: 8px !important;
-  }
-
-  .monthly-report-page .monthly-platform-grid,
-  .monthly-report-page .monthly-donut-grid {
-    gap: 5px !important;
-  }
-
-  .monthly-report-page .monthly-donut-grid {
+  .monthly-donut-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 
-  .monthly-report-page .platform-chart-card,
-  .monthly-report-page .compact-donut {
-    min-height: 92px !important;
-    padding: 6px 7px !important;
-    border-radius: 8px !important;
+  .monthly-platform-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 
-  .monthly-report-page .platform-stack {
-    height: 8px !important;
-    margin: 3px 0 !important;
+  .visual-chart {
+    padding: 6px !important;
+    border-radius: 7px !important;
   }
 
-  .monthly-report-page .platform-legend {
-    gap: 2px !important;
-    margin-top: 4px !important;
+  .visual-chart-title {
+    font-size: 8px !important;
+    margin-bottom: 5px !important;
   }
 
-  .monthly-report-page .platform-legend-item {
+  .bar-list {
+    gap: 4px !important;
+  }
+
+  .bar-row {
+    grid-template-columns: 78px minmax(50px, 1fr) 42px !important;
+    gap: 4px !important;
+  }
+
+  .bar-label,
+  .bar-value,
+  .progress-head,
+  .donut-legend {
     font-size: 7px !important;
-    grid-template-columns: 7px minmax(0, 1fr) auto !important;
-    gap: 3px !important;
   }
 
-  .monthly-report-page .platform-color {
-    width: 6px !important;
+  .bar-track,
+  .progress-track {
     height: 6px !important;
   }
 
-  .monthly-report-page .donut-wrap {
-    min-height: 45px !important;
+  .donut {
+    width: 70px !important;
+    height: 70px !important;
   }
 
-  .monthly-report-page .donut {
-    width: 52px !important;
-    height: 52px !important;
+  .donut::before {
+    width: 46px !important;
+    height: 46px !important;
   }
 
-  .monthly-report-page .donut::before {
-    width: 34px !important;
-    height: 34px !important;
+  .donut-center strong {
+    font-size: 13px !important;
   }
 
-  .monthly-report-page .donut-center strong {
-    font-size: 11px !important;
+  .donut-center span {
+    font-size: 6px !important;
   }
 
-  .monthly-report-page .donut-center span,
-  .monthly-report-page .donut-legend {
-    font-size: 7px !important;
+  .donut-legend {
+    gap: 7px !important;
+    margin-top: 4px !important;
   }
 
-  .monthly-report-page .donut-legend {
-    margin-top: 3px !important;
-    gap: 5px !important;
-  }
-
-  .monthly-report-page .monthly-detail-panel {
+  .monthly-detail-panel {
     break-before: page !important;
     page-break-before: always !important;
     margin-top: 0 !important;
   }
 
-  .monthly-report-page .monthly-detail-table {
+  .report-section-title {
+    margin: 0 0 5px !important;
+  }
+
+  .report-section-title h3 {
+    font-size: 12px !important;
+  }
+
+  .detail-period-note {
+    font-size: 8px !important;
+    margin: 1px 0 0 !important;
+  }
+
+  .monthly-detail-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
     font-size: 7px !important;
   }
 
-  .monthly-report-page .monthly-detail-table th,
-  .monthly-report-page .monthly-detail-table td {
+  .monthly-detail-table th,
+  .monthly-detail-table td {
     padding: 3px 3px !important;
+    font-size: 7px !important;
+    line-height: 1.2 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .monthly-detail-table th:first-child,
+  .monthly-detail-table td:first-child {
+    width: 18% !important;
+  }
+
+  .table-wrap {
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  .print-friendly,
+  .monthly-chart-section,
+  .monthly-donut-section {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }
