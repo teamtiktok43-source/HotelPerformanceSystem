@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { getHotels, getMonthly, Hotel } from '../api'
 import Stat from '../components/StatCard'
 import Print from '../components/PrintButton'
-import Toast from '../components/Toast'
 import { ComparisonDonut, HorizontalBars, PlatformShareChart } from '../components/ReportCharts'
 
 function monthName(m: number) {
@@ -26,20 +25,9 @@ export default function MonthlyReport() {
   const [hotelId, setHotelId] = useState('')
   const [data, setData] = useState<any>(null)
   const [hotels, setHotels] = useState<Hotel[]>([])
-  const [reportError, setReportError] = useState('')
-  const load = async () => {
-    try {
-      const result = await getMonthly(y, m, hotelId ? Number(hotelId) : undefined)
-      setData(result)
-      setReportError('')
-    } catch (ex: any) {
-      setReportError(ex?.message || 'تعذر تحميل بيانات التقرير')
-    }
-  }
+  const load = () => getMonthly(y, m, hotelId ? Number(hotelId) : undefined).then(setData)
 
-  useEffect(() => {
-    getHotels().then(setHotels).catch(() => {})
-  }, [])
+  useEffect(() => { getHotels().then(setHotels) }, [])
   useEffect(() => { load() }, [y, m, hotelId])
 
   const d = data || { rows: [], totals: {}, previous: { rows: [], totals: {}, year: previousMonth(y, m).year, month: previousMonth(y, m).month } }
@@ -70,6 +58,189 @@ export default function MonthlyReport() {
 
   return (
     <section className="page monthly-report-page">
+      <style>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 6mm;
+          }
+
+          html, body, #root {
+            width: 100% !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+          }
+
+          .app {
+            display: block !important;
+            min-height: 0 !important;
+            width: 100% !important;
+          }
+
+          .main {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            direction: rtl !important;
+          }
+
+          .monthly-report-page {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          .monthly-report-page > .page-head {
+            width: 100% !important;
+            margin: 0 0 5mm !important;
+            padding: 0 !important;
+          }
+
+          .monthly-report-page > .stats {
+            width: 100% !important;
+            margin: 0 0 3mm !important;
+            display: grid !important;
+            grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+            gap: 2mm !important;
+          }
+
+          .monthly-report-page .stat-card {
+            min-width: 0 !important;
+            min-height: 17mm !important;
+            padding: 2.5mm !important;
+            overflow: hidden !important;
+          }
+
+          .monthly-report-page .stat-title {
+            font-size: 7.5px !important;
+            white-space: nowrap !important;
+          }
+
+          .monthly-report-page .stat-value {
+            font-size: 14px !important;
+            margin-top: 1mm !important;
+          }
+
+          .monthly-chart-section,
+          .monthly-donut-section,
+          .monthly-detail-panel {
+            width: 100% !important;
+            max-width: none !important;
+            box-sizing: border-box !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+
+          .monthly-chart-section,
+          .monthly-donut-section {
+            padding: 3mm !important;
+            margin-bottom: 3mm !important;
+          }
+
+          .monthly-section-head {
+            width: 100% !important;
+            margin-bottom: 2mm !important;
+          }
+
+          .monthly-chart-pair {
+            width: 100% !important;
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+            gap: 2mm !important;
+          }
+
+          .monthly-chart-pair > .visual-chart,
+          .monthly-donut-section .visual-chart {
+            width: 100% !important;
+            max-width: none !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+
+          .monthly-chart-pair > .visual-chart {
+            min-height: 32mm !important;
+            padding: 2mm 2.5mm !important;
+          }
+
+          .monthly-donut-grid,
+          .monthly-platform-grid {
+            width: 100% !important;
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 2mm !important;
+          }
+
+          .monthly-donut-section .visual-chart {
+            min-height: 29mm !important;
+            padding: 2mm 2.5mm !important;
+          }
+
+          .monthly-report-page .bar-list { gap: 1.2mm !important; }
+          .monthly-report-page .bar-row {
+            grid-template-columns: 30mm minmax(12mm, 1fr) 13mm !important;
+            gap: 1.2mm !important;
+          }
+
+          .monthly-report-page .bar-label,
+          .monthly-report-page .bar-value,
+          .monthly-report-page .progress-head,
+          .monthly-report-page .donut-legend {
+            font-size: 6.8px !important;
+          }
+
+          .monthly-report-page .bar-track,
+          .monthly-report-page .progress-track { height: 1.6mm !important; }
+          .monthly-report-page .visual-chart-title {
+            font-size: 8.5px !important;
+            margin-bottom: 1.2mm !important;
+          }
+
+          .monthly-report-page .donut {
+            width: 19mm !important;
+            height: 19mm !important;
+          }
+
+          .monthly-report-page .donut::before {
+            width: 12.5mm !important;
+            height: 12.5mm !important;
+          }
+
+          .monthly-report-page .donut-center strong { font-size: 10.5px !important; }
+          .monthly-report-page .donut-center span { font-size: 5.8px !important; }
+
+          .monthly-detail-panel {
+            margin-top: 0 !important;
+            padding: 3mm !important;
+            break-before: page !important;
+            page-break-before: always !important;
+          }
+
+          .monthly-detail-table {
+            width: 100% !important;
+            min-width: 0 !important;
+            table-layout: fixed !important;
+            font-size: 7.2px !important;
+          }
+
+          .monthly-detail-table th,
+          .monthly-detail-table td {
+            padding: 1.6mm 1.3mm !important;
+            overflow-wrap: anywhere !important;
+          }
+
+          .monthly-report-page .panel,
+          .monthly-report-page .monthly-chart-section,
+          .monthly-report-page .monthly-donut-section,
+          .monthly-report-page .stat-card {
+            box-shadow: none !important;
+          }
+        }
+      `}</style>
       <div className="page-head">
         <div><h2>التقرير الشهري</h2><p>{monthName(m)} {y} — ملخص + المقارنات + التقرير التفصيلي</p></div>
         <div className="actions no-print"><button className="btn primary" onClick={load}>عرض التقرير</button><Print /></div>
@@ -153,7 +324,6 @@ export default function MonthlyReport() {
           <tbody>{rows.length ? rows.map((r:any) => <tr key={r.hotel_name}><td>{r.hotel_name}</td><td>{num(r.bookings)}</td><td>{num(r.paid)}</td><td>{num(r.cash)}</td><td>{num(r.actual_revenue).toFixed(2)}</td><td>{num(r.commission).toFixed(2)}</td><td>{num(r.tax).toFixed(2)}</td><td>{num(r.net_revenue).toFixed(2)}</td><td>{num(r.review_count)}</td><td>{num(r.average_rating).toFixed(2)}</td></tr>) : <tr><td colSpan={10} className="empty-cell">لا توجد بيانات لهذه الفترة.</td></tr>}</tbody>
         </table></div>
       </section>
-      {reportError && <Toast text={reportError} error onClose={() => setReportError('')} />}
     </section>
   )
 }
