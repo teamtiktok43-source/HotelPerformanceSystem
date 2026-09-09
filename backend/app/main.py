@@ -3,12 +3,12 @@ from decimal import Decimal, ROUND_HALF_UP
 import os
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func, or_, text
+from sqlalchemy import func, or_, text, delete
 from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
-from .models import Booking, Hotel, Platform, Revenue, Review, User
+from .models import Booking, Hotel, Platform, Revenue, Review, ReviewComment, Notification, User
 from .schemas import (BookingCreate, BookingUpdate, EmployeeCreate, EmployeeUpdate, HotelCreate, HotelUpdate,
-                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, PlatformCreate, PlatformUpdate)
+                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, ReviewCommentCreate, PlatformCreate, PlatformUpdate)
 from .auth import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from .seed import seed_defaults
 from .websocket import manager
@@ -48,6 +48,10 @@ def ensure_schema_updates():
         add_column("revenues", "platform_id", "platform_id INTEGER")
     if "platform_id" not in review_columns:
         add_column("reviews", "platform_id", "platform_id INTEGER")
+    if "rejection_reason" not in review_columns:
+        add_column("reviews", "rejection_reason", "rejection_reason TEXT NOT NULL DEFAULT ''")
+    if "updated_at" not in review_columns:
+        add_column("reviews", "updated_at", "updated_at DATETIME")
 
     if not statements:
         return
@@ -109,15 +113,57 @@ def revenue_to_dict(r: Revenue):
         "employee_name": r.employee.display_name if r.employee else "", "created_at": r.created_at.isoformat(),
     }
 
-def review_to_dict(r: Review):
+def review_to_dict(r: Review, unread_comment_count: int = 0):
     return {
         "id": r.id, "booking_number": r.booking_number, "hotel_id": r.hotel_id, "hotel_name": r.hotel.name if r.hotel else "",
-        "rating": float(r.rating or 0), "comment": r.comment, "platform_id": r.platform_id, "platform_name": r.platform.name if r.platform else ("غير محدد" if not r.platform_id else ""), "sentiment": r.sentiment, "review_date": r.review_date.isoformat(),
-        "proposed_action": r.proposed_action, "employee_id": r.employee_id, "employee_name": r.employee.display_name if r.employee else "",
-        "status": r.status, "manager_id": r.manager_id, "manager_name": r.manager.display_name if r.manager else "",
+        "rating": float(r.rating or 0), "comment": r.comment, "platform_id": r.platform_id,
+        "platform_name": r.platform.name if r.platform else ("غير محدد" if not r.platform_id else ""),
+        "sentiment": r.sentiment, "review_date": r.review_date.isoformat(),
+        "proposed_action": r.proposed_action, "employee_id": r.employee_id,
+        "employee_name": r.employee.display_name if r.employee else "",
+        "status": r.status, "rejection_reason": r.rejection_reason or "",
+        "manager_id": r.manager_id, "manager_name": r.manager.display_name if r.manager else "",
         "manager_decided_at": r.manager_decided_at.isoformat() if r.manager_decided_at else None,
-        "created_at": r.created_at.isoformat(),
+        "created_at": r.created_at.isoformat(), "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+        "unread_comment_count": unread_comment_count,
     }
+
+def comment_to_dict(c: ReviewComment):
+    return {
+        "id": c.id, "review_id": c.review_id, "author_id": c.author_id,
+        "author_name": c.author.display_name if c.author else "",
+        "author_role": c.author.role if c.author else "",
+        "content": c.content, "parent_comment_id": c.parent_comment_id,
+        "created_at": c.created_at.isoformat(), "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+    }
+
+def notification_to_dict(n: Notification):
+    return {
+        "id": n.id, "recipient_id": n.recipient_id, "type": n.type, "title": n.title,
+        "message": n.message, "review_id": n.review_id, "comment_id": n.comment_id,
+        "is_read": bool(n.is_read), "read_at": n.read_at.isoformat() if n.read_at else None,
+        "created_at": n.created_at.isoformat(),
+    }
+
+def _authorized_review(review: Review, user: User):
+    if user.role in ("admin", "manager") or review.employee_id == user.id:
+        return
+    raise HTTPException(403, "You do not have access to this review")
+
+def _review_recipients_for_employee(review: Review, db: Session):
+    if review.manager_id:
+        manager_user = db.get(User, review.manager_id)
+        return [manager_user] if manager_user and manager_user.active else []
+    return db.query(User).filter(User.active.is_(True), User.role.in_(("manager", "admin"))).all()
+
+def _add_notification(db: Session, recipient_id: int, ntype: str, title: str, message: str, review_id: int | None = None, comment_id: int | None = None):
+    n = Notification(
+        recipient_id=recipient_id, type=ntype, title=title, message=message,
+        review_id=review_id, comment_id=comment_id, is_read=False
+    )
+    db.add(n)
+    return n
+
 
 @app.get("/")
 def root():
@@ -410,14 +456,27 @@ async def delete_revenue(revenue_id: int, db: Session = Depends(get_db), user: U
 @app.post("/api/reviews", status_code=201)
 async def create_review(payload: ReviewCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     hotel = db.get(Hotel, payload.hotel_id)
-    if not hotel or not hotel.active: raise HTTPException(400, "Invalid hotel")
+    if not hotel or not hotel.active:
+        raise HTTPException(400, "Invalid hotel")
     platform_id = payload.platform_id
-    if platform_id is not None and not db.get(Platform, platform_id):
-        raise HTTPException(400, "Invalid platform")
-    rv = Review(booking_number=payload.booking_number.strip(), hotel_id=payload.hotel_id, platform_id=platform_id, rating=payload.rating, comment=payload.comment.strip(),
-                sentiment=payload.sentiment, review_date=payload.review_date, proposed_action=payload.proposed_action.strip(),
-                employee_id=payload.employee_id or user.id, status="Pending")
-    db.add(rv); db.commit(); db.refresh(rv)
+    if platform_id is not None:
+        platform = db.get(Platform, platform_id)
+        if not platform or not platform.active:
+            raise HTTPException(400, "Invalid platform")
+    if user.role not in ("admin", "manager") and payload.employee_id not in (None, user.id):
+        raise HTTPException(403, "Employees can only create reviews for themselves")
+    employee_id = payload.employee_id or user.id
+    employee = db.get(User, employee_id)
+    if not employee or not employee.active:
+        raise HTTPException(400, "Invalid employee")
+    rv = Review(
+        booking_number=payload.booking_number.strip(), hotel_id=payload.hotel_id, platform_id=platform_id,
+        rating=payload.rating, comment=payload.comment.strip(), sentiment=payload.sentiment.strip(),
+        review_date=payload.review_date, proposed_action=payload.proposed_action.strip(),
+        employee_id=employee_id, status="Pending", rejection_reason=""
+    )
+    db.add(rv)
+    db.commit(); db.refresh(rv)
     await manager.broadcast({"type": "review.created", "id": rv.id})
     return review_to_dict(rv)
 
@@ -426,13 +485,39 @@ def list_reviews(start: date | None = None, end: date | None = None, hotel_id: i
                  status: str | None = None, employee_id: int | None = None, platform_id: int | None = None,
                  db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = db.query(Review)
+    if user.role not in ("admin", "manager"):
+        q = q.filter(Review.employee_id == user.id)
+    elif employee_id:
+        q = q.filter(Review.employee_id == employee_id)
     if start: q = q.filter(Review.review_date >= start)
     if end: q = q.filter(Review.review_date <= end)
     if hotel_id: q = q.filter(Review.hotel_id == hotel_id)
     if status: q = q.filter(Review.status == status)
-    if employee_id: q = q.filter(Review.employee_id == employee_id)
     if platform_id: q = q.filter(Review.platform_id == platform_id)
-    return [review_to_dict(r) for r in q.order_by(Review.review_date.desc(), Review.id.desc()).all()]
+    reviews = q.order_by(Review.review_date.desc(), Review.id.desc()).all()
+    unread_counts = {}
+    if reviews:
+        ids = [r.id for r in reviews]
+        rows = (db.query(Notification.review_id, func.count(Notification.id))
+                .filter(Notification.recipient_id == user.id, Notification.is_read.is_(False),
+                        Notification.review_id.in_(ids), Notification.comment_id.isnot(None))
+                .group_by(Notification.review_id).all())
+        unread_counts = {review_id: count for review_id, count in rows}
+    return [review_to_dict(r, unread_counts.get(r.id, 0)) for r in reviews]
+
+@app.get("/api/reviews/{review_id}")
+def get_review_detail(review_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    rv = db.get(Review, review_id)
+    if not rv:
+        raise HTTPException(404, "Review not found")
+    _authorized_review(rv, user)
+    comments = db.query(ReviewComment).filter(ReviewComment.review_id == rv.id).order_by(ReviewComment.created_at.asc(), ReviewComment.id.asc()).all()
+    unread_comment_ids = {comment_id for (comment_id,) in (
+        db.query(Notification.comment_id)
+        .filter(Notification.recipient_id == user.id, Notification.is_read.is_(False),
+                Notification.review_id == rv.id, Notification.comment_id.isnot(None)).all()
+    )}
+    return {**review_to_dict(rv, len(unread_comment_ids)), "comments": [{**comment_to_dict(c), "unread": c.id in unread_comment_ids} for c in comments]}
 
 @app.patch("/api/reviews/{review_id}")
 async def update_review(review_id: int, payload: ReviewUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -447,19 +532,21 @@ async def update_review(review_id: int, payload: ReviewUpdate, db: Session = Dep
         raise HTTPException(400, "Invalid hotel")
     employee_id = payload.employee_id if payload.employee_id is not None else rv.employee_id
     platform_id = payload.platform_id if payload.platform_id is not None else rv.platform_id
-    if platform_id is not None and not db.get(Platform, platform_id):
-        raise HTTPException(400, "Invalid platform")
+    if platform_id is not None:
+        platform = db.get(Platform, platform_id)
+        if not platform or not platform.active:
+            raise HTTPException(400, "Invalid platform")
     if not db.get(User, employee_id):
         raise HTTPException(400, "Invalid employee")
     if payload.booking_number is not None: rv.booking_number = payload.booking_number.strip()
-    rv.hotel_id = hotel_id
-    rv.platform_id = platform_id
+    rv.hotel_id = hotel_id; rv.platform_id = platform_id
     if payload.rating is not None: rv.rating = payload.rating
     if payload.comment is not None: rv.comment = payload.comment.strip()
-    if payload.sentiment is not None: rv.sentiment = payload.sentiment
+    if payload.sentiment is not None: rv.sentiment = payload.sentiment.strip()
     if payload.review_date is not None: rv.review_date = payload.review_date
     if payload.proposed_action is not None: rv.proposed_action = payload.proposed_action.strip()
     rv.employee_id = employee_id
+    rv.updated_at = datetime.utcnow()
     db.commit(); db.refresh(rv)
     await manager.broadcast({"type": "review.updated", "id": rv.id})
     return review_to_dict(rv)
@@ -471,20 +558,111 @@ async def delete_review(review_id: int, db: Session = Depends(get_db), user: Use
     rv = db.get(Review, review_id)
     if not rv:
         raise HTTPException(404, "Review not found")
+    db.query(Notification).filter(Notification.review_id == review_id).delete(synchronize_session=False)
+    db.query(ReviewComment).filter(ReviewComment.review_id == review_id).delete(synchronize_session=False)
     db.delete(rv); db.commit()
     await manager.broadcast({"type": "review.deleted", "id": review_id})
     return {"deleted": True, "id": review_id}
 
 @app.patch("/api/reviews/{review_id}/decision")
 async def decide_review(review_id: int, payload: ReviewDecision, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    if user.role not in ("admin", "manager"): raise HTTPException(403, "Manager required")
-    if payload.status not in ("Approved", "Rejected"): raise HTTPException(400, "Invalid decision")
+    if user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Manager required")
+    if payload.status not in ("Approved", "Rejected"):
+        raise HTTPException(400, "Invalid decision")
     rv = db.get(Review, review_id)
-    if not rv: raise HTTPException(404, "Review not found")
-    rv.status = payload.status; rv.manager_id = user.id; rv.manager_decided_at = datetime.utcnow()
+    if not rv:
+        raise HTTPException(404, "Review not found")
+    reason = (payload.rejection_reason or "").strip()
+    if payload.status == "Rejected" and not reason:
+        raise HTTPException(400, "Rejection reason is required")
+    changed = rv.status != payload.status or (payload.status == "Rejected" and rv.rejection_reason != reason)
+    rv.status = payload.status
+    rv.rejection_reason = reason if payload.status == "Rejected" else ""
+    rv.manager_id = user.id; rv.manager_decided_at = datetime.utcnow(); rv.updated_at = datetime.utcnow()
+    if changed:
+        title = "تم اعتماد تقييمك" if payload.status == "Approved" else "تم رفض تقييمك"
+        if payload.status == "Approved":
+            message = f"تم اعتماد تقييم الفندق {rv.hotel.name} بواسطة المدير."
+            ntype = "REVIEW_APPROVED"
+        else:
+            message = f"قام المدير برفض تقييم الفندق {rv.hotel.name}. سبب الرفض: {reason}"
+            ntype = "REVIEW_REJECTED"
+        _add_notification(db, rv.employee_id, ntype, title, message, review_id=rv.id)
     db.commit(); db.refresh(rv)
     await manager.broadcast({"type": "review.decided", "id": rv.id, "status": rv.status})
+    if changed:
+        await manager.send_to_user(rv.employee_id, {"type": "notification.created", "review_id": rv.id})
     return review_to_dict(rv)
+
+@app.post("/api/reviews/{review_id}/comments", status_code=201)
+async def add_review_comment(review_id: int, payload: ReviewCommentCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    rv = db.get(Review, review_id)
+    if not rv:
+        raise HTTPException(404, "Review not found")
+    _authorized_review(rv, user)
+    content = payload.content.strip()
+    if not content:
+        raise HTTPException(400, "Comment cannot be empty")
+    parent = None
+    if payload.parent_comment_id is not None:
+        parent = db.get(ReviewComment, payload.parent_comment_id)
+        if not parent or parent.review_id != review_id:
+            raise HTTPException(400, "Invalid parent comment")
+    comment = ReviewComment(review_id=review_id, author_id=user.id, parent_comment_id=payload.parent_comment_id, content=content)
+    db.add(comment); db.flush()
+
+    recipients: list[User] = []
+    if user.id == rv.employee_id:
+        recipients = _review_recipients_for_employee(rv, db)
+        ntype = "REVIEW_COMMENT_REPLY" if parent else "REVIEW_COMMENT_ADDED"
+        title = "رد جديد على تعليقك" if parent else "تعليق جديد على تقييمك"
+        message = "قام الموظف بالرد على تعليقك." if parent else "قام الموظف بإضافة تعليق جديد على التقييم."
+    else:
+        recipient = db.get(User, rv.employee_id)
+        recipients = [recipient] if recipient and recipient.active else []
+        ntype = "REVIEW_COMMENT_REPLY" if parent else "REVIEW_COMMENT_ADDED"
+        title = "رد جديد على تعليقك" if parent else "تعليق جديد على تقييمك"
+        message = "قام المدير بالرد على تعليقك." if parent else "قام المدير بإضافة تعليق جديد على التقييم."
+    for recipient in recipients:
+        if recipient.id != user.id:
+            _add_notification(db, recipient.id, ntype, title, message, review_id=review_id, comment_id=comment.id)
+
+    db.commit(); db.refresh(comment)
+    await manager.broadcast({"type": "review.comment.created", "review_id": review_id, "comment_id": comment.id})
+    for recipient in recipients:
+        if recipient.id != user.id:
+            await manager.send_to_user(recipient.id, {"type": "notification.created", "review_id": review_id, "comment_id": comment.id})
+    return comment_to_dict(comment)
+
+@app.get("/api/notifications")
+def list_notifications(db: Session = Depends(get_db), user: User = Depends(get_current_user), unread_only: bool = False):
+    q = db.query(Notification).filter(Notification.recipient_id == user.id)
+    if unread_only:
+        q = q.filter(Notification.is_read.is_(False))
+    return [notification_to_dict(n) for n in q.order_by(Notification.created_at.desc(), Notification.id.desc()).limit(50).all()]
+
+@app.get("/api/notifications/unread-count")
+def unread_notification_count(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return {"count": db.query(Notification).filter(Notification.recipient_id == user.id, Notification.is_read.is_(False)).count()}
+
+@app.patch("/api/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    n = db.get(Notification, notification_id)
+    if not n or n.recipient_id != user.id:
+        raise HTTPException(404, "Notification not found")
+    if not n.is_read:
+        n.is_read = True; n.read_at = datetime.utcnow(); db.commit()
+    return notification_to_dict(n)
+
+@app.post("/api/notifications/read-all")
+def mark_all_notifications_read(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    now = datetime.utcnow()
+    count = (db.query(Notification)
+             .filter(Notification.recipient_id == user.id, Notification.is_read.is_(False))
+             .update({Notification.is_read: True, Notification.read_at: now}, synchronize_session=False))
+    db.commit()
+    return {"updated": count}
 
 @app.get("/api/ratings")
 def ratings(year: int | None = Query(default=None, ge=2000, le=2100), month: int | None = Query(default=None, ge=1, le=12), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -699,6 +877,10 @@ async def delete_data_month(
     start_date = date(year, month, 1)
     end_date = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
 
+    review_ids = [row[0] for row in db.query(Review.id).filter(Review.review_date >= start_date, Review.review_date < end_date).all()]
+    if review_ids:
+        db.query(Notification).filter(Notification.review_id.in_(review_ids)).delete(synchronize_session=False)
+        db.query(ReviewComment).filter(ReviewComment.review_id.in_(review_ids)).delete(synchronize_session=False)
     booking_count = db.query(Booking).filter(Booking.booking_date >= start_date, Booking.booking_date < end_date).delete(synchronize_session=False)
     revenue_count = db.query(Revenue).filter(Revenue.revenue_date >= start_date, Revenue.revenue_date < end_date).delete(synchronize_session=False)
     review_count = db.query(Review).filter(Review.review_date >= start_date, Review.review_date < end_date).delete(synchronize_session=False)
@@ -725,11 +907,12 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.close(code=1008)
         return
     try:
-        decode_access_token(token)
+        payload = decode_access_token(token)
+        user_id = int(payload.get("sub"))
     except Exception:
         await websocket.close(code=1008)
         return
-    await manager.connect(websocket)
+    await manager.connect(websocket, user_id)
     try:
         while True:
             await websocket.receive_text()

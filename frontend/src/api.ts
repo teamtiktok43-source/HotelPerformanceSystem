@@ -1,38 +1,128 @@
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-export type User={id:number;username:string;display_name:string;role:string;active:boolean};
-export type Hotel={id:number;name:string;commission_rate:number;tax_rate:number;active:boolean};
-export type Platform={id:number;name:string;active:boolean};
-const token=()=>localStorage.getItem('hps_token')||'';
-export async function apiFetch<T>(path:string, options:RequestInit={}):Promise<T>{const headers=new Headers(options.headers);if(!(options.body instanceof FormData))headers.set('Content-Type','application/json');const t=token();if(t)headers.set('Authorization',`Bearer ${t}`);const r=await fetch(`${API_BASE}${path}`,{...options,headers});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'حدث خطأ في الاتصال');return d as T;}
-export const getHotels=()=>apiFetch<Hotel[]>('/api/hotels');
-export const getPlatforms=()=>apiFetch<Platform[]>('/api/platforms');
-export const createPlatform=(b:any)=>apiFetch<Platform>('/api/platforms',{method:'POST',body:JSON.stringify(b)});
-export const updatePlatform=(id:number,b:any)=>apiFetch<Platform>(`/api/platforms/${id}`,{method:'PATCH',body:JSON.stringify(b)});
-export const getEmployees=()=>apiFetch<User[]>('/api/employees');
-export const getDashboard=(params:string)=>apiFetch<any>(`/api/dashboard?${params}`);
-export const getBookings=(params='')=>apiFetch<any[]>(`/api/bookings?${params}`);
-export const getRevenue=(params='')=>apiFetch<any[]>(`/api/revenue?${params}`);
-export const getReviews=(params='')=>apiFetch<any[]>(`/api/reviews?${params}`);
-export const getRatings=(year?:number,month?:number)=>apiFetch<any[]>(`/api/ratings${year&&month?`?year=${year}&month=${month}`:''}`);
-export const getMonthly=(y:number,m:number,hotelId?:number)=>apiFetch<any>(`/api/monthly-report?year=${y}&month=${m}${hotelId?`&hotel_id=${hotelId}`:''}`);
-export const createBooking=(b:any)=>apiFetch<any>('/api/bookings',{method:'POST',body:JSON.stringify(b)});
-export const createRevenue=(b:any)=>apiFetch<any>('/api/revenue',{method:'POST',body:JSON.stringify(b)});
-export const createReview=(b:any)=>apiFetch<any>('/api/reviews',{method:'POST',body:JSON.stringify(b)});
-export const decideReview=(id:number,status:string)=>apiFetch<any>(`/api/reviews/${id}/decision`,{method:'PATCH',body:JSON.stringify({status})});
-export const createHotel=(b:any)=>apiFetch<any>('/api/hotels',{method:'POST',body:JSON.stringify(b)});
-export const updateHotel=(id:number,b:any)=>apiFetch<any>(`/api/hotels/${id}`,{method:'PATCH',body:JSON.stringify(b)});
-export const createEmployee=(b:any)=>apiFetch<any>('/api/employees',{method:'POST',body:JSON.stringify(b)});
-export const updateEmployee=(id:number,b:any)=>apiFetch<any>(`/api/employees/${id}`,{method:'PATCH',body:JSON.stringify(b)});
-export const deleteEmployee=(id:number)=>apiFetch<any>(`/api/employees/${id}`,{method:'DELETE'});
-export const getData=()=>apiFetch<any>('/api/data');
-export const deleteDataMonth=(year:number,month:number)=>apiFetch<any>(`/api/data/month?year=${year}&month=${month}`,{method:'DELETE'});
-export const updateBooking=(id:number,b:any)=>apiFetch<any>(`/api/bookings/${id}`,{method:'PATCH',body:JSON.stringify(b)});
-export const deleteBooking=(id:number)=>apiFetch<any>(`/api/bookings/${id}`,{method:'DELETE'});
-export const updateRevenue=(id:number,b:any)=>apiFetch<any>(`/api/revenue/${id}`,{method:'PATCH',body:JSON.stringify(b)});
-export const deleteRevenue=(id:number)=>apiFetch<any>(`/api/revenue/${id}`,{method:'DELETE'});
-export const updateReview=(id:number,b:any)=>apiFetch<any>(`/api/reviews/${id}`,{method:'PATCH',body:JSON.stringify(b)});
-export const deleteReview=(id:number)=>apiFetch<any>(`/api/reviews/${id}`,{method:'DELETE'});
-export const saveAuth=(u:User,t:string)=>{localStorage.setItem('hps_token',t);localStorage.setItem('hps_user',JSON.stringify(u));};
-export const getAuthUser=():User|null=>{try{return JSON.parse(localStorage.getItem('hps_user')||'null')}catch{return null}};
-export const logout=()=>{localStorage.removeItem('hps_token');localStorage.removeItem('hps_user')};
-export function connectRealtime(onEvent:(e:any)=>void){const t=token();if(!t)return()=>{};const url=API_BASE.replace(/^http/,'ws')+`/ws?token=${encodeURIComponent(t)}`;let ws:WebSocket|undefined,stopped=false,timer:number|undefined;const open=()=>{if(stopped)return;ws=new WebSocket(url);ws.onmessage=e=>{try{onEvent(JSON.parse(e.data))}catch{}};ws.onclose=()=>{if(!stopped)timer=window.setTimeout(open,1500)}};open();return()=>{stopped=true;if(timer)window.clearTimeout(timer);ws?.close()}};
+export const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+
+export type User = { id: number; username: string; display_name: string; role: string; active: boolean }
+export type Hotel = { id: number; name: string; commission_rate: number; tax_rate: number; active: boolean }
+export type Platform = { id: number; name: string; active: boolean }
+export type ReviewComment = {
+  id: number
+  review_id: number
+  author_id: number
+  author_name: string
+  author_role: string
+  content: string
+  parent_comment_id?: number | null
+  created_at: string
+  updated_at?: string | null
+  unread?: boolean
+}
+export type Review = {
+  id: number
+  booking_number: string
+  hotel_id: number
+  hotel_name: string
+  rating: number
+  comment: string
+  platform_id?: number | null
+  platform_name: string
+  sentiment: string
+  review_date: string
+  proposed_action: string
+  employee_id: number
+  employee_name: string
+  status: string
+  rejection_reason?: string
+  manager_id?: number | null
+  manager_name?: string
+  manager_decided_at?: string | null
+  created_at: string
+  updated_at?: string | null
+  unread_comment_count?: number
+  comments?: ReviewComment[]
+}
+export type Notification = {
+  id: number
+  recipient_id: number
+  type: string
+  title: string
+  message: string
+  review_id?: number | null
+  comment_id?: number | null
+  is_read: boolean
+  read_at?: string | null
+  created_at: string
+}
+
+const token = () => localStorage.getItem('hps_token') || ''
+
+export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers)
+  if (!(options.body instanceof FormData)) headers.set('Content-Type', 'application/json')
+  const t = token()
+  if (t) headers.set('Authorization', `Bearer ${t}`)
+  const r = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.detail || 'حدث خطأ في الاتصال')
+  return d as T
+}
+
+export const getHotels = () => apiFetch<Hotel[]>('/api/hotels')
+export const getPlatforms = () => apiFetch<Platform[]>('/api/platforms')
+export const createPlatform = (b: any) => apiFetch<Platform>('/api/platforms', { method: 'POST', body: JSON.stringify(b) })
+export const updatePlatform = (id: number, b: any) => apiFetch<Platform>(`/api/platforms/${id}`, { method: 'PATCH', body: JSON.stringify(b) })
+export const getEmployees = () => apiFetch<User[]>('/api/employees')
+export const getDashboard = (params: string) => apiFetch<any>(`/api/dashboard?${params}`)
+export const getBookings = (params = '') => apiFetch<any[]>(`/api/bookings?${params}`)
+export const getRevenue = (params = '') => apiFetch<any[]>(`/api/revenue?${params}`)
+export const getReviews = (params = '') => apiFetch<Review[]>(`/api/reviews?${params}`)
+export const getReviewDetail = (id: number) => apiFetch<Review>(`/api/reviews/${id}`)
+export const getRatings = (year?: number, month?: number) => apiFetch<any[]>(`/api/ratings${year && month ? `?year=${year}&month=${month}` : ''}`)
+export const getMonthly = (y: number, m: number, hotelId?: number) => apiFetch<any>(`/api/monthly-report?year=${y}&month=${m}${hotelId ? `&hotel_id=${hotelId}` : ''}`)
+export const createBooking = (b: any) => apiFetch<any>('/api/bookings', { method: 'POST', body: JSON.stringify(b) })
+export const createRevenue = (b: any) => apiFetch<any>('/api/revenue', { method: 'POST', body: JSON.stringify(b) })
+export const createReview = (b: any) => apiFetch<Review>('/api/reviews', { method: 'POST', body: JSON.stringify(b) })
+export const decideReview = (id: number, status: string, rejectionReason?: string) =>
+  apiFetch<Review>(`/api/reviews/${id}/decision`, { method: 'PATCH', body: JSON.stringify({ status, rejection_reason: rejectionReason }) })
+export const addReviewComment = (id: number, content: string, parentCommentId?: number) =>
+  apiFetch<ReviewComment>(`/api/reviews/${id}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ content, parent_comment_id: parentCommentId ?? null }),
+  })
+export const createHotel = (b: any) => apiFetch<any>('/api/hotels', { method: 'POST', body: JSON.stringify(b) })
+export const updateHotel = (id: number, b: any) => apiFetch<any>(`/api/hotels/${id}`, { method: 'PATCH', body: JSON.stringify(b) })
+export const createEmployee = (b: any) => apiFetch<any>('/api/employees', { method: 'POST', body: JSON.stringify(b) })
+export const updateEmployee = (id: number, b: any) => apiFetch<any>(`/api/employees/${id}`, { method: 'PATCH', body: JSON.stringify(b) })
+export const deleteEmployee = (id: number) => apiFetch<any>(`/api/employees/${id}`, { method: 'DELETE' })
+export const getData = () => apiFetch<any>('/api/data')
+export const deleteDataMonth = (year: number, month: number) => apiFetch<any>(`/api/data/month?year=${year}&month=${month}`, { method: 'DELETE' })
+export const updateBooking = (id: number, b: any) => apiFetch<any>(`/api/bookings/${id}`, { method: 'PATCH', body: JSON.stringify(b) })
+export const deleteBooking = (id: number) => apiFetch<any>(`/api/bookings/${id}`, { method: 'DELETE' })
+export const updateRevenue = (id: number, b: any) => apiFetch<any>(`/api/revenue/${id}`, { method: 'PATCH', body: JSON.stringify(b) })
+export const deleteRevenue = (id: number) => apiFetch<any>(`/api/revenue/${id}`, { method: 'DELETE' })
+export const updateReview = (id: number, b: any) => apiFetch<Review>(`/api/reviews/${id}`, { method: 'PATCH', body: JSON.stringify(b) })
+export const deleteReview = (id: number) => apiFetch<any>(`/api/reviews/${id}`, { method: 'DELETE' })
+
+export const getNotifications = (unreadOnly = false) => apiFetch<Notification[]>(`/api/notifications${unreadOnly ? '?unread_only=true' : ''}`)
+export const getUnreadNotificationCount = () => apiFetch<{ count: number }>('/api/notifications/unread-count')
+export const markNotificationRead = (id: number) => apiFetch<Notification>(`/api/notifications/${id}/read`, { method: 'PATCH' })
+export const markAllNotificationsRead = () => apiFetch<{ updated: number }>('/api/notifications/read-all', { method: 'POST' })
+
+export const saveAuth = (u: User, t: string) => { localStorage.setItem('hps_token', t); localStorage.setItem('hps_user', JSON.stringify(u)) }
+export const getAuthUser = (): User | null => { try { return JSON.parse(localStorage.getItem('hps_user') || 'null') } catch { return null } }
+export const logout = () => { localStorage.removeItem('hps_token'); localStorage.removeItem('hps_user') }
+
+export function connectRealtime(onEvent: (e: any) => void) {
+  const t = token()
+  if (!t) return () => {}
+  const url = API_BASE.replace(/^http/, 'ws') + `/ws?token=${encodeURIComponent(t)}`
+  let ws: WebSocket | undefined
+  let stopped = false
+  let timer: number | undefined
+  const open = () => {
+    if (stopped) return
+    ws = new WebSocket(url)
+    ws.onmessage = e => { try { onEvent(JSON.parse(e.data)) } catch {} }
+    ws.onclose = () => { if (!stopped) timer = window.setTimeout(open, 1500) }
+  }
+  open()
+  return () => { stopped = true; if (timer) window.clearTimeout(timer); ws?.close() }
+}
