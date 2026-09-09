@@ -19,6 +19,7 @@ class Hotel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(160), unique=True, index=True)
     commission_rate: Mapped[Decimal] = mapped_column(Numeric(8, 5), default=Decimal("0"))
+    tax_rate: Mapped[Decimal] = mapped_column(Numeric(8, 5), default=Decimal("0"))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 class Booking(Base):
@@ -45,6 +46,8 @@ class Revenue(Base):
     commissionable_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
     commission_rate: Mapped[Decimal] = mapped_column(Numeric(8, 5), default=Decimal("0"))
     commission: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
+    tax_rate: Mapped[Decimal] = mapped_column(Numeric(8, 5), default=Decimal("0"))
+    tax: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
     net_revenue: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
     employee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import os
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
 from .models import Booking, Hotel, Revenue, Review, User
@@ -18,15 +18,42 @@ app = FastAPI(title="Hotel Performance System API", version="1.0.0")
 origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if o.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=origins or ["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
+def ensure_schema_updates():
+    inspector = __import__("sqlalchemy").inspect(engine)
+    # Existing deployments created before tax support need the new columns.
+    try:
+        hotel_columns = {c["name"] for c in inspector.get_columns("hotels")}
+        revenue_columns = {c["name"] for c in inspector.get_columns("revenues")}
+    except Exception:
+        return
+
+    with engine.begin() as conn:
+        if "tax_rate" not in hotel_columns:
+            if engine.url.get_backend_name() == "sqlite":
+                conn.execute(text("ALTER TABLE hotels ADD COLUMN tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0"))
+            else:
+                conn.execute(text("ALTER TABLE hotels ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0"))
+        if "tax_rate" not in revenue_columns:
+            if engine.url.get_backend_name() == "sqlite":
+                conn.execute(text("ALTER TABLE revenues ADD COLUMN tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0"))
+            else:
+                conn.execute(text("ALTER TABLE revenues ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(8, 5) NOT NULL DEFAULT 0"))
+        if "tax" not in revenue_columns:
+            if engine.url.get_backend_name() == "sqlite":
+                conn.execute(text("ALTER TABLE revenues ADD COLUMN tax NUMERIC(14, 2) NOT NULL DEFAULT 0"))
+            else:
+                conn.execute(text("ALTER TABLE revenues ADD COLUMN IF NOT EXISTS tax NUMERIC(14, 2) NOT NULL DEFAULT 0"))
+
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
+    ensure_schema_updates()
     with Session(engine) as db:
         seed_defaults(db)
 
 
 def hotel_to_dict(h: Hotel):
-    return {"id": h.id, "name": h.name, "commission_rate": float(h.commission_rate or 0), "active": h.active}
+    return {"id": h.id, "name": h.name, "commission_rate": float(h.commission_rate or 0), "tax_rate": float(h.tax_rate or 0), "active": h.active}
 
 def user_to_dict(u: User):
     return {"id": u.id, "username": u.username, "display_name": u.display_name, "role": u.role, "active": u.active}
@@ -43,7 +70,7 @@ def revenue_to_dict(r: Revenue):
         "id": r.id, "booking_number": r.booking_number, "hotel_id": r.hotel_id, "hotel_name": r.hotel.name if r.hotel else "",
         "platform": r.platform, "revenue_date": r.revenue_date.isoformat(), "actual_price": float(r.actual_price or 0),
         "commissionable_amount": float(r.commissionable_amount or 0), "commission_rate": float(r.commission_rate or 0),
-        "commission": float(r.commission or 0), "net_revenue": float(r.net_revenue or 0), "employee_id": r.employee_id,
+        "commission": float(r.commission or 0), "tax_rate": float(r.tax_rate or 0), "tax": float(r.tax or 0), "net_revenue": float(r.net_revenue or 0), "employee_id": r.employee_id,
         "employee_name": r.employee.display_name if r.employee else "", "created_at": r.created_at.isoformat(),
     }
 
@@ -87,7 +114,7 @@ def create_hotel(payload: HotelCreate, db: Session = Depends(get_db), user: User
         raise HTTPException(403, "Admin or manager required")
     if db.query(Hotel).filter(func.lower(Hotel.name) == payload.name.lower()).first():
         raise HTTPException(400, "Hotel already exists")
-    h = Hotel(name=payload.name.strip(), commission_rate=payload.commission_rate, active=payload.active)
+    h = Hotel(name=payload.name.strip(), commission_rate=payload.commission_rate, tax_rate=payload.tax_rate, active=payload.active)
     db.add(h); db.commit(); db.refresh(h)
     return hotel_to_dict(h)
 
@@ -108,7 +135,7 @@ def update_hotel(hotel_id: int, payload: HotelUpdate, db: Session = Depends(get_
         )
         if duplicate:
             raise HTTPException(400, "Hotel already exists")
-    for field in ("name", "commission_rate", "active"):
+    for field in ("name", "commission_rate", "tax_rate", "active"):
         value = getattr(payload, field)
         if value is not None: setattr(h, field, value)
     db.commit(); db.refresh(h)
@@ -226,11 +253,13 @@ async def create_revenue(payload: RevenueCreate, db: Session = Depends(get_db), 
     hotel = db.get(Hotel, payload.hotel_id)
     if not hotel or not hotel.active: raise HTTPException(400, "Invalid hotel")
     rate = Decimal(hotel.commission_rate or 0)
+    tax_rate = Decimal(hotel.tax_rate or 0)
     commission = (payload.commissionable_amount * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    net = (payload.actual_price - commission).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    tax = (payload.actual_price * tax_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    net = (payload.actual_price - commission - tax).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     r = Revenue(booking_number=payload.booking_number.strip(), hotel_id=payload.hotel_id, platform=payload.platform.strip(), revenue_date=payload.revenue_date,
                 actual_price=payload.actual_price, commissionable_amount=payload.commissionable_amount, commission_rate=rate,
-                commission=commission, net_revenue=net, employee_id=payload.employee_id or user.id)
+                commission=commission, tax_rate=tax_rate, tax=tax, net_revenue=net, employee_id=payload.employee_id or user.id)
     db.add(r); db.commit(); db.refresh(r)
     await manager.broadcast({"type": "revenue.created", "id": r.id})
     return revenue_to_dict(r)
@@ -267,11 +296,14 @@ async def update_revenue(revenue_id: int, payload: RevenueUpdate, db: Session = 
     if payload.commissionable_amount is not None: r.commissionable_amount = payload.commissionable_amount
     r.employee_id = employee_id
     rate = Decimal(hotel.commission_rate or 0)
+    tax_rate = Decimal(hotel.tax_rate or 0)
     commissionable = Decimal(r.commissionable_amount or 0)
     actual = Decimal(r.actual_price or 0)
     r.commission_rate = rate
     r.commission = (commissionable * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    r.net_revenue = (actual - r.commission).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    r.tax_rate = tax_rate
+    r.tax = (actual * tax_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    r.net_revenue = (actual - r.commission - r.tax).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     db.commit(); db.refresh(r)
     await manager.broadcast({"type": "revenue.updated", "id": r.id})
     return revenue_to_dict(r)
@@ -393,6 +425,7 @@ def dashboard(start: date | None = None, end: date | None = None, hotel_id: int 
     cash_bookings = sum(b.cash_bookings for b in bookings)
     actual_revenue = sum((r.actual_price or 0) for r in revenues)
     commission = sum((r.commission or 0) for r in revenues)
+    tax = sum((r.tax or 0) for r in revenues)
     net = sum((r.net_revenue or 0) for r in revenues)
     avg_rating = (sum((r.rating or 0) for r in reviews) / len(reviews)) if reviews else 0
     revenue_by_hotel = {}
@@ -412,7 +445,7 @@ def dashboard(start: date | None = None, end: date | None = None, hotel_id: int 
     return {
         "filters": {"start": start.isoformat(), "end": end.isoformat(), "hotel_id": hotel_id},
         "kpis": {"reviews": len(reviews), "bookings": total_bookings, "paid_bookings": paid_bookings, "cash_bookings": cash_bookings,
-                 "actual_revenue": float(actual_revenue), "commission": float(commission), "net_revenue": float(net), "average_rating": round(float(avg_rating), 2)},
+                 "actual_revenue": float(actual_revenue), "commission": float(commission), "tax": float(tax), "net_revenue": float(net), "average_rating": round(float(avg_rating), 2)},
         "revenue_by_hotel": revenue_chart, "paid_cash": paid_cash, "sentiment": sentiment_chart,
         "top_hotel": top_hotel, "hotel_performance": hotel_perf,
     }
@@ -432,12 +465,15 @@ def monthly_report(month: int = Query(..., ge=1, le=12), year: int = Query(..., 
         hv = [v for v in reviews if v.hotel_id == h.id]
         rows.append({"hotel_name": h.name, "bookings": sum(b.total_bookings for b in hb), "paid": sum(b.paid_bookings for b in hb),
                      "cash": sum(b.cash_bookings for b in hb), "actual_revenue": round(sum(float(r.actual_price) if r.actual_price is not None else 0.0 for r in hr), 2),
-                     "commission": round(sum(float(r.commission) if r.commission is not None else 0.0 for r in hr), 2), "net_revenue": round(sum(float(r.net_revenue) if r.net_revenue is not None else 0.0 for r in hr), 2),
+                     "commission": round(sum(float(r.commission) if r.commission is not None else 0.0 for r in hr), 2),
+                     "tax": round(sum(float(r.tax) if getattr(r, "tax", None) is not None else 0.0 for r in hr), 2),
+                     "net_revenue": round(sum(float(r.net_revenue) if r.net_revenue is not None else 0.0 for r in hr), 2),
                      "review_count": len(hv), "average_rating": round(sum(float(v.rating or 0) for v in hv)/len(hv), 2) if hv else 0})
     rows.sort(key=lambda x: x["net_revenue"], reverse=True)
     return {"year": year, "month": month, "start": start.isoformat(), "end": end.isoformat(), "rows": rows,
             "totals": {"bookings": sum(r["bookings"] for r in rows), "paid": sum(r["paid"] for r in rows), "cash": sum(r["cash"] for r in rows),
                        "actual_revenue": round(sum(r["actual_revenue"] for r in rows), 2), "commission": round(sum(r["commission"] for r in rows), 2),
+                       "tax": round(sum(r["tax"] for r in rows), 2),
                        "net_revenue": round(sum(r["net_revenue"] for r in rows), 2), "reviews": sum(r["review_count"] for r in rows),
                        "average_rating": round(sum(r["average_rating"] for r in rows if r["review_count"])/len([r for r in rows if r["review_count"]]), 2) if any(r["review_count"] for r in rows) else 0}}
 

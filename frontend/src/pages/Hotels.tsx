@@ -4,6 +4,7 @@ import { Hotel, User, createHotel, getHotels, updateHotel } from '../api';
 type EditState = {
   name: string;
   rate: string;
+  taxRate: string;
   active: boolean;
 };
 
@@ -11,8 +12,9 @@ export default function Hotels({ user }: { user: User }) {
   const [rows, setRows] = useState<Hotel[]>([]);
   const [name, setName] = useState('');
   const [rate, setRate] = useState('0');
+  const [taxRate, setTaxRate] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [edit, setEdit] = useState<EditState>({ name: '', rate: '0', active: true });
+  const [edit, setEdit] = useState<EditState>({ name: '', rate: '0', taxRate: '', active: true });
   const [busy, setBusy] = useState(false);
   const canManage = user.role === 'admin' || user.role === 'manager';
 
@@ -31,6 +33,7 @@ export default function Hotels({ user }: { user: User }) {
   async function add() {
     const trimmed = name.trim();
     const numericRate = Number(rate);
+    const numericTax = taxRate.trim() === '' ? 0 : Number(taxRate);
 
     if (!trimmed) {
       alert('اكتب اسم الفندق.');
@@ -40,16 +43,22 @@ export default function Hotels({ user }: { user: User }) {
       alert('نسبة العمولة يجب أن تكون بين 0 و100%.');
       return;
     }
+    if (!Number.isFinite(numericTax) || numericTax < 0 || numericTax > 100) {
+      alert('نسبة الضريبة يجب أن تكون بين 0 و100%.');
+      return;
+    }
 
     try {
       setBusy(true);
       await createHotel({
         name: trimmed,
         commission_rate: numericRate / 100,
+        tax_rate: numericTax / 100,
         active: true,
       });
       setName('');
       setRate('0');
+      setTaxRate('');
       await load();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'تعذر إضافة الفندق');
@@ -63,18 +72,20 @@ export default function Hotels({ user }: { user: User }) {
     setEdit({
       name: hotel.name,
       rate: String((hotel.commission_rate * 100).toFixed(2)),
+      taxRate: hotel.tax_rate ? String((hotel.tax_rate * 100).toFixed(2)) : '',
       active: hotel.active,
     });
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setEdit({ name: '', rate: '0', active: true });
+    setEdit({ name: '', rate: '0', taxRate: '', active: true });
   }
 
   async function saveEdit(id: number) {
     const trimmed = edit.name.trim();
     const numericRate = Number(edit.rate);
+    const numericTax = edit.taxRate.trim() === '' ? 0 : Number(edit.taxRate);
 
     if (!trimmed) {
       alert('اسم الفندق لا يمكن أن يكون فارغًا.');
@@ -84,12 +95,17 @@ export default function Hotels({ user }: { user: User }) {
       alert('نسبة العمولة يجب أن تكون بين 0 و100%.');
       return;
     }
+    if (!Number.isFinite(numericTax) || numericTax < 0 || numericTax > 100) {
+      alert('نسبة الضريبة يجب أن تكون بين 0 و100%.');
+      return;
+    }
 
     try {
       setBusy(true);
       await updateHotel(id, {
         name: trimmed,
         commission_rate: numericRate / 100,
+        tax_rate: numericTax / 100,
         active: edit.active,
       });
       cancelEdit();
@@ -117,8 +133,8 @@ export default function Hotels({ user }: { user: User }) {
     <section className="page">
       <div className="page-head">
         <div>
-          <h2>إدارة الفنادق والعمولات</h2>
-          <p>إضافة وتعديل اسم الفندق ونسبة العمولة وحالة الفندق.</p>
+          <h2>إدارة الفنادق والعمولات والضرائب</h2>
+          <p>إضافة وتعديل اسم الفندق ونسبة العمولة والضريبة وحالة الفندق.</p>
         </div>
       </div>
 
@@ -140,6 +156,18 @@ export default function Hotels({ user }: { user: User }) {
                 onChange={(e) => setRate(e.target.value)}
               />
             </label>
+            <label>
+              الضرائب %
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                placeholder="اختياري"
+                value={taxRate}
+                onChange={(e) => setTaxRate(e.target.value)}
+              />
+            </label>
           </div>
           <button className="btn primary" onClick={add} disabled={busy}>
             {busy ? 'جارٍ التنفيذ...' : 'إضافة فندق'}
@@ -155,6 +183,7 @@ export default function Hotels({ user }: { user: User }) {
                 <th>#</th>
                 <th>اسم الفندق</th>
                 <th>نسبة العمولة</th>
+                <th>الضرائب</th>
                 <th>الحالة</th>
                 <th className="no-print">إجراء</th>
               </tr>
@@ -187,6 +216,18 @@ export default function Hotels({ user }: { user: User }) {
                           />
                         </td>
                         <td>
+                          <input
+                            className="table-input"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            placeholder="اختياري"
+                            value={edit.taxRate}
+                            onChange={(e) => setEdit({ ...edit, taxRate: e.target.value })}
+                          />
+                        </td>
+                        <td>
                           <select
                             className="table-input"
                             value={edit.active ? 'active' : 'inactive'}
@@ -203,6 +244,7 @@ export default function Hotels({ user }: { user: User }) {
                       <>
                         <td>{hotel.name}</td>
                         <td>{(hotel.commission_rate * 100).toFixed(2)}%</td>
+                        <td>{hotel.tax_rate ? `${(hotel.tax_rate * 100).toFixed(2)}%` : '0.00%'}</td>
                         <td>{hotel.active ? 'Active' : 'Inactive'}</td>
                       </>
                     )}
@@ -237,7 +279,7 @@ export default function Hotels({ user }: { user: User }) {
               })}
               {!rows.length && (
                 <tr>
-                  <td colSpan={5}>لا توجد فنادق حاليًا.</td>
+                  <td colSpan={6}>لا توجد فنادق حاليًا.</td>
                 </tr>
               )}
             </tbody>

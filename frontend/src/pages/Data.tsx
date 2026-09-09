@@ -224,8 +224,8 @@ export default function Data() {
 
       <div className="panel">
         <h3>الإيرادات ({d.revenues.length})</h3>
-        <div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>الحجز</th><th>الفندق</th><th>المنصة</th><th>الفعلي</th><th>العمولة</th><th>الصافي</th><th>الموظف</th>{canManage && <th>إجراء</th>}</tr></thead>
-          <tbody>{d.revenues.length ? d.revenues.map((r: any) => <tr key={r.id}><td>{r.revenue_date}</td><td>{r.booking_number}</td><td>{r.hotel_name}</td><td>{r.platform}</td><td>{money(r.actual_price)}</td><td>{money(r.commission)}</td><td>{money(r.net_revenue)}</td><td>{r.employee_name}</td>{canManage && <td><div className="action-row"><button className="mini" onClick={() => openEdit('revenue', r)}>تعديل</button><button className="mini mini-danger" onClick={() => remove('revenue', r)}>حذف</button></div></td>}</tr>) : <tr><td colSpan={canManage ? 9 : 8} className="empty-cell">لا توجد إيرادات.</td></tr>}</tbody>
+        <div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>الحجز</th><th>الفندق</th><th>المنصة</th><th>الإجمالي</th><th>العمولة</th><th>الضريبة</th><th>الصافي</th><th>الموظف</th>{canManage && <th>إجراء</th>}</tr></thead>
+          <tbody>{d.revenues.length ? d.revenues.map((r: any) => <tr key={r.id}><td>{r.revenue_date}</td><td>{r.booking_number}</td><td>{r.hotel_name}</td><td>{r.platform}</td><td>{money(r.actual_price)}</td><td>{money(r.commission)}</td><td>{money(r.tax)}</td><td>{money(r.net_revenue)}</td><td>{r.employee_name}</td>{canManage && <td><div className="action-row"><button className="mini" onClick={() => openEdit('revenue', r)}>تعديل</button><button className="mini mini-danger" onClick={() => remove('revenue', r)}>حذف</button></div></td>}</tr>) : <tr><td colSpan={canManage ? 10 : 9} className="empty-cell">لا توجد إيرادات.</td></tr>}</tbody>
         </table></div>
       </div>
 
@@ -254,7 +254,7 @@ export default function Data() {
               <label>الفندق<select value={form.hotel_id} onChange={e => update('hotel_id', e.target.value)}>{hotelOptions.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></label>
               <label>المنصة<input value={form.platform} onChange={e => update('platform', e.target.value)} /></label>
               <label>تاريخ الإيراد<input type="date" value={form.revenue_date} onChange={e => update('revenue_date', e.target.value)} /></label>
-              <label>السعر الفعلي<input type="number" min="0" step="0.01" value={form.actual_price} onChange={e => update('actual_price', e.target.value)} /></label>
+              <label>السعر الإجمالي<input type="number" min="0" step="0.01" value={form.actual_price} onChange={e => update('actual_price', e.target.value)} /></label>
               <label>المبلغ الخاضع للعمولة<input type="number" min="0" step="0.01" value={form.commissionable_amount} onChange={e => update('commissionable_amount', e.target.value)} /></label>
               <label>الموظف<select value={form.employee_id} onChange={e => update('employee_id', e.target.value)}>{employeeOptions.map(e => <option key={e.id} value={e.id}>{e.display_name}</option>)}</select></label>
             </div>}

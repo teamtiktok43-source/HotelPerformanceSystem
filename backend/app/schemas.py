@@ -9,11 +9,13 @@ class LoginRequest(BaseModel):
 class HotelCreate(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     commission_rate: Decimal = Field(default=Decimal("0"), ge=0, le=1)
+    tax_rate: Decimal = Field(default=Decimal("0"), ge=0, le=1)
     active: bool = True
 
 class HotelUpdate(BaseModel):
     name: str | None = None
     commission_rate: Decimal | None = Field(default=None, ge=0, le=1)
+    tax_rate: Decimal | None = Field(default=None, ge=0, le=1)
     active: bool | None = None
 
 class EmployeeCreate(BaseModel):

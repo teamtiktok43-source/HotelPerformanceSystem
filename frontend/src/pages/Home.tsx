@@ -15,6 +15,7 @@ const DEFAULTS = {
     actual_revenue: 0,
     commission: 0,
     net_revenue: 0,
+    tax: 0,
     average_rating: 0,
   },
   revenue_by_hotel: [{ name: 'لا توجد بيانات', value: 0 }],
@@ -101,7 +102,8 @@ export default function Home() {
         {(showBookings || section === 'all') && <StatCard title="الحجوزات المدفوعة" value={d.kpis.paid_bookings} />}
         {(showBookings || section === 'all') && <StatCard title="الحجوزات الكاش" value={d.kpis.cash_bookings} />}
         {(showRevenue || section === 'all') && <StatCard title="الإيراد الفعلي" value={d.kpis.actual_revenue} />}
-        {(showRevenue || section === 'all') && <StatCard title="العمولة" value={d.kpis.commission} />}
+        {(showRevenue || section === 'all') && <StatCard title="العمولة" value={d.kpis.commission} />
+        {(showRevenue || section === 'all') && <StatCard title="الضرائب" value={d.kpis.tax} />}}
         {(showRevenue || section === 'all') && <StatCard title="صافي الإيراد" value={d.kpis.net_revenue} />}
         {(showRatings || section === 'all') && <StatCard title="متوسط التقييم" value={d.kpis.average_rating} unit="/10" />}
       </div>

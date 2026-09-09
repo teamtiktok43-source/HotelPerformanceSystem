@@ -22,7 +22,7 @@ export default function MonthlyReport() {
   const rows = Array.isArray(d.rows) ? d.rows : []
   const totals = {
     bookings: num(d.totals?.bookings), paid: num(d.totals?.paid), cash: num(d.totals?.cash),
-    actual_revenue: num(d.totals?.actual_revenue), commission: num(d.totals?.commission),
+    actual_revenue: num(d.totals?.actual_revenue), commission: num(d.totals?.commission), tax: num(d.totals?.tax),
     net_revenue: num(d.totals?.net_revenue), reviews: num(d.totals?.reviews), average_rating: num(d.totals?.average_rating),
   }
 
@@ -44,6 +44,7 @@ export default function MonthlyReport() {
         <Stat title="الكاش" value={totals.cash} />
         <Stat title="الإيراد الفعلي" value={totals.actual_revenue} />
         <Stat title="العمولة" value={totals.commission} />
+        <Stat title="الضرائب" value={totals.tax} />
         <Stat title="صافي الإيراد" value={totals.net_revenue} />
         <Stat title="التقييمات" value={totals.reviews} />
         <Stat title="متوسط التقييم" value={totals.average_rating} />
@@ -58,8 +59,8 @@ export default function MonthlyReport() {
 
       <div className="panel print-friendly">
         <div className="report-section-title"><h3>التقرير المكتوب التفصيلي</h3></div>
-        <div className="table-wrap"><table><thead><tr><th>الفندق</th><th>الحجوزات</th><th>مدفوع</th><th>كاش</th><th>الإيراد الفعلي</th><th>العمولة</th><th>الصافي</th><th>التقييمات</th><th>متوسط التقييم</th></tr></thead>
-          <tbody>{rows.map((r: any) => <tr key={r.hotel_name}><td>{r.hotel_name}</td><td>{num(r.bookings)}</td><td>{num(r.paid)}</td><td>{num(r.cash)}</td><td>{num(r.actual_revenue).toFixed(2)}</td><td>{num(r.commission).toFixed(2)}</td><td>{num(r.net_revenue).toFixed(2)}</td><td>{num(r.review_count)}</td><td>{num(r.average_rating).toFixed(2)}</td></tr>)}</tbody>
+        <div className="table-wrap"><table><thead><tr><th>الفندق</th><th>الحجوزات</th><th>مدفوع</th><th>كاش</th><th>السعر الإجمالي</th><th>العمولة</th><th>الضرائب</th><th>الصافي</th><th>التقييمات</th><th>متوسط التقييم</th></tr></thead>
+          <tbody>{rows.map((r: any) => <tr key={r.hotel_name}><td>{r.hotel_name}</td><td>{num(r.bookings)}</td><td>{num(r.paid)}</td><td>{num(r.cash)}</td><td>{num(r.actual_revenue).toFixed(2)}</td><td>{num(r.commission).toFixed(2)}</td><td>{num(r.tax).toFixed(2)}</td><td>{num(r.net_revenue).toFixed(2)}</td><td>{num(r.review_count)}</td><td>{num(r.average_rating).toFixed(2)}</td></tr>)}</tbody>
         </table></div>
       </div>
     </section>

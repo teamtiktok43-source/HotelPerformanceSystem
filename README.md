@@ -178,3 +178,6 @@ This starter stores the default credentials only as secure password hashes in th
 ### Hotels editing
 The Hotels page now supports editing hotel name, commission rate, and active/inactive status from the table. Admins and managers can edit; employees cannot.
 
+
+
+V9: Hotel tax rate + automatic tax calculation added. Existing data defaults to 0 tax.

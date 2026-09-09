@@ -1,6 +1,6 @@
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 export type User={id:number;username:string;display_name:string;role:string;active:boolean};
-export type Hotel={id:number;name:string;commission_rate:number;active:boolean};
+export type Hotel={id:number;name:string;commission_rate:number;tax_rate:number;active:boolean};
 const token=()=>localStorage.getItem('hps_token')||'';
 export async function apiFetch<T>(path:string, options:RequestInit={}):Promise<T>{const headers=new Headers(options.headers);if(!(options.body instanceof FormData))headers.set('Content-Type','application/json');const t=token();if(t)headers.set('Authorization',`Bearer ${t}`);const r=await fetch(`${API_BASE}${path}`,{...options,headers});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'حدث خطأ في الاتصال');return d as T;}
 export const getHotels=()=>apiFetch<Hotel[]>('/api/hotels');
