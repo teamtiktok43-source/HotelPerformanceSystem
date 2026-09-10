@@ -49,13 +49,41 @@ export default function Home() {
   const [section, setSection] = useState('all')
   const [data, setData] = useState<any>(null)
   const [hotels, setHotels] = useState<Hotel[]>([])
+  const [loadError, setLoadError] = useState('')
 
-  const load = () => getDashboard(new URLSearchParams({ start, end, ...(hotelId ? { hotel_id: hotelId } : {}) }).toString()).then(setData)
+  const load = async () => {
+    try {
+      const result = await getDashboard(
+        new URLSearchParams({
+          start,
+          end,
+          ...(hotelId ? { hotel_id: hotelId } : {}),
+        }).toString()
+      )
+      setData(result)
+      setLoadError('')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'حدث خطأ في تحميل لوحة الأداء'
+      setLoadError(message)
+    }
+  }
 
-  useEffect(() => { getHotels().then(setHotels) }, [])
-  useEffect(() => { load() }, [tick])
+  useEffect(() => {
+    getHotels().then(setHotels).catch(() => {})
+  }, [])
 
-  const d = useMemo(() => ({ ...DEFAULTS, ...(data || {}), kpis: { ...DEFAULTS.kpis, ...(data?.kpis || {}) } }), [data])
+  useEffect(() => {
+    load()
+  }, [tick])
+
+  const d = useMemo(
+    () => ({
+      ...DEFAULTS,
+      ...(data || {}),
+      kpis: { ...DEFAULTS.kpis, ...(data?.kpis || {}) },
+    }),
+    [data]
+  )
 
   const showBookings = section === 'all' || section === 'bookings'
   const showRevenue = section === 'all' || section === 'revenue'
@@ -72,9 +100,30 @@ export default function Home() {
   const visibleActions = section === 'all' ? actions : actions.filter(a => a[3] === section || a[3] === 'all')
 
   const sentimentData = [
-    { name: 'إيجابي', value: safe(d.sentiment.find((x: any) => String(x.name).toLowerCase().includes('إيج') || String(x.name).toLowerCase() === 'positive')?.value) },
-    { name: 'سلبي', value: safe(d.sentiment.find((x: any) => String(x.name).toLowerCase().includes('سلب') || String(x.name).toLowerCase() === 'negative')?.value) },
-    { name: 'محايد', value: safe(d.sentiment.find((x: any) => String(x.name).toLowerCase().includes('محا') || String(x.name).toLowerCase() === 'neutral')?.value) },
+    {
+      name: 'إيجابي',
+      value: safe(
+        d.sentiment.find(
+          (x: any) => String(x.name).toLowerCase().includes('إيج') || String(x.name).toLowerCase() === 'positive'
+        )?.value
+      ),
+    },
+    {
+      name: 'سلبي',
+      value: safe(
+        d.sentiment.find(
+          (x: any) => String(x.name).toLowerCase().includes('سلب') || String(x.name).toLowerCase() === 'negative'
+        )?.value
+      ),
+    },
+    {
+      name: 'محايد',
+      value: safe(
+        d.sentiment.find(
+          (x: any) => String(x.name).toLowerCase().includes('محا') || String(x.name).toLowerCase() === 'neutral'
+        )?.value
+      ),
+    },
   ]
 
   return (
@@ -91,6 +140,12 @@ export default function Home() {
         </div>
       </div>
 
+      {loadError && (
+        <div className="toast error no-print" role="alert">
+          تعذر تحميل لوحة الأداء: {loadError}
+        </div>
+      )}
+
       <div className="home-hero print-friendly">
         <div className="home-hero-overlay" />
         <div className="home-hero-content">
@@ -106,10 +161,27 @@ export default function Home() {
       </div>
 
       <div className="filters no-print dashboard-filters">
-        <label>من تاريخ<input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
-        <label>إلى تاريخ<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
-        <label>الفندق<select value={hotelId} onChange={e => setHotelId(e.target.value)}><option value="">كل الفنادق</option>{hotels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></label>
-        <label>القسم<select value={section} onChange={e => setSection(e.target.value)}>{sectionOptions.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
+        <label>
+          من تاريخ
+          <input type="date" value={start} onChange={e => setStart(e.target.value)} />
+        </label>
+        <label>
+          إلى تاريخ
+          <input type="date" value={end} onChange={e => setEnd(e.target.value)} />
+        </label>
+        <label>
+          الفندق
+          <select value={hotelId} onChange={e => setHotelId(e.target.value)}>
+            <option value="">كل الفنادق</option>
+            {hotels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+          </select>
+        </label>
+        <label>
+          القسم
+          <select value={section} onChange={e => setSection(e.target.value)}>
+            {sectionOptions.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}
+          </select>
+        </label>
       </div>
 
       <div className="stats">
@@ -129,7 +201,13 @@ export default function Home() {
       </div>
 
       <div className="platform-section print-friendly">
-        <div className="platform-section-head"><div><h3>توزيع الأداء حسب المنصة</h3><p>نسبة الحجوزات والتقييمات والقيمة المالية حسب مصدر الحجز.</p></div><Link className="platform-manage-link no-print" to="/platforms">إدارة المنصات</Link></div>
+        <div className="platform-section-head">
+          <div>
+            <h3>توزيع الأداء حسب المنصة</h3>
+            <p>نسبة الحجوزات والتقييمات والقيمة المالية حسب مصدر الحجز.</p>
+          </div>
+          <Link className="platform-manage-link no-print" to="/platforms">إدارة المنصات</Link>
+        </div>
         <div className="platform-chart-grid">
           <PlatformShareChart title="نسبة الحجوزات حسب المنصة" items={d.platform_breakdown?.bookings || []} />
           <PlatformShareChart title="نسبة التقييمات حسب المنصة" items={d.platform_breakdown?.reviews || []} />
@@ -153,11 +231,15 @@ export default function Home() {
           <h3>أداء الفنادق</h3>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>الفندق</th><th>الحجوزات</th><th>مدفوع</th><th>كاش</th></tr></thead>
+              <thead>
+                <tr><th>الفندق</th><th>الحجوزات</th><th>مدفوع</th><th>كاش</th></tr>
+              </thead>
               <tbody>
                 {(d.hotel_performance || []).length ? d.hotel_performance.map((r: any) => (
                   <tr key={r.hotel}><td>{r.hotel}</td><td>{r.bookings}</td><td>{r.paid}</td><td>{r.cash}</td></tr>
-                )) : <tr><td colSpan={4} className="empty-cell">لا توجد بيانات للحجوزات في الفترة المحددة.</td></tr>}
+                )) : (
+                  <tr><td colSpan={4} className="empty-cell">لا توجد بيانات للحجوزات في الفترة المحددة.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
