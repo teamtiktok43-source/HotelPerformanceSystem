@@ -1,11 +1,11 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { createBooking, getBookings, getEmployees, getHotels, getPlatforms, Hotel, User, Platform } from '../api'
+import { createBooking, getBookings, getEmployees, getHotels, getPlatforms, getLocalDateString, Hotel, User, Platform } from '../api'
 import PrintButton from '../components/PrintButton'
 import { useRealtime } from '../useRealtime'
 
 export default function DailyBookings() {
   const tick = useRealtime()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getLocalDateString()
   const [hotels, setHotels] = useState<Hotel[]>([])
   const [emps, setEmps] = useState<User[]>([])
   const [platforms, setPlatforms] = useState<Platform[]>([])
@@ -19,7 +19,7 @@ export default function DailyBookings() {
 
   const load = () => getBookings(new URLSearchParams({ start, end, ...(hotelFilter ? { hotel_id: hotelFilter } : {}), ...(platformFilter ? { platform_id: platformFilter } : {}) } as any).toString()).then(setRows)
   useEffect(() => { getHotels().then(setHotels); getEmployees().then(setEmps); getPlatforms().then(setPlatforms) }, [])
-  useEffect(() => { load() }, [tick])
+  useEffect(() => { load() }, [tick, start, end, hotelFilter, platformFilter])
 
   const cash = Math.max(0, Number(form.total_bookings || 0) - Number(form.paid_bookings || 0))
 

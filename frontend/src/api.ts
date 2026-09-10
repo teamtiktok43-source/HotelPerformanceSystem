@@ -1,5 +1,12 @@
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
+export const getLocalDateString = (value = new Date()) => {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export type User = { id: number; username: string; display_name: string; role: string; active: boolean }
 export type Hotel = { id: number; name: string; commission_rate: number; tax_rate: number; active: boolean }
 export type Platform = { id: number; name: string; active: boolean }

@@ -374,6 +374,9 @@ async def create_booking(payload: BookingCreate, db: Session = Depends(get_db), 
     hotel = db.get(Hotel, payload.hotel_id)
     if not hotel or not hotel.active: raise HTTPException(400, "Invalid hotel")
     employee_id = payload.employee_id or user.id
+    employee = db.get(User, employee_id)
+    if not employee or not employee.active:
+        raise HTTPException(400, "Invalid employee")
     platform_id = payload.platform_id
     if platform_id is not None and not db.get(Platform, platform_id):
         raise HTTPException(400, "Invalid platform")
@@ -410,7 +413,8 @@ async def update_booking(booking_id: int, payload: BookingUpdate, db: Session = 
     platform_id = payload.platform_id if payload.platform_id is not None else b.platform_id
     if platform_id is not None and not db.get(Platform, platform_id):
         raise HTTPException(400, "Invalid platform")
-    if not db.get(User, employee_id):
+    employee = db.get(User, employee_id)
+    if not employee or not employee.active:
         raise HTTPException(400, "Invalid employee")
     total = payload.total_bookings if payload.total_bookings is not None else b.total_bookings
     paid = payload.paid_bookings if payload.paid_bookings is not None else b.paid_bookings
@@ -445,6 +449,10 @@ async def create_revenue(payload: RevenueCreate, db: Session = Depends(get_db), 
     platform_id = payload.platform_id
     if platform_id is not None and not db.get(Platform, platform_id):
         raise HTTPException(400, "Invalid platform")
+    employee_id = payload.employee_id or user.id
+    employee = db.get(User, employee_id)
+    if not employee or not employee.active:
+        raise HTTPException(400, "Invalid employee")
     rate = Decimal(hotel.commission_rate or 0)
     tax_rate = Decimal(hotel.tax_rate or 0)
     commission = (payload.commissionable_amount * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -452,7 +460,7 @@ async def create_revenue(payload: RevenueCreate, db: Session = Depends(get_db), 
     net = (payload.actual_price - commission - tax).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     r = Revenue(booking_number=payload.booking_number.strip(), hotel_id=payload.hotel_id, platform=(db.get(Platform, platform_id).name if platform_id else payload.platform.strip()), platform_id=platform_id, revenue_date=payload.revenue_date,
                 actual_price=payload.actual_price, commissionable_amount=payload.commissionable_amount, commission_rate=rate,
-                commission=commission, tax_rate=tax_rate, tax=tax, net_revenue=net, employee_id=payload.employee_id or user.id)
+                commission=commission, tax_rate=tax_rate, tax=tax, net_revenue=net, employee_id=employee_id)
     db.add(r); db.commit(); db.refresh(r)
     await manager.broadcast({"type": "revenue.created", "id": r.id})
     return revenue_to_dict(r)
@@ -483,7 +491,8 @@ async def update_revenue(revenue_id: int, payload: RevenueUpdate, db: Session = 
     platform_id = payload.platform_id if payload.platform_id is not None else r.platform_id
     if platform_id is not None and not db.get(Platform, platform_id):
         raise HTTPException(400, "Invalid platform")
-    if not db.get(User, employee_id):
+    employee = db.get(User, employee_id)
+    if not employee or not employee.active:
         raise HTTPException(400, "Invalid employee")
     if payload.booking_number is not None: r.booking_number = payload.booking_number.strip()
     r.hotel_id = hotel_id
@@ -781,15 +790,28 @@ def dashboard(start: date | None = None, end: date | None = None, hotel_id: int 
     def platform_breakdown(records, value_getter):
         totals = {}
         for rec in records:
-            platform_name = (rec.platform.name if hasattr(rec, "platform") and getattr(rec, "platform", None) else None)
-            if not platform_name and hasattr(rec, "platform_ref") and getattr(rec, "platform_ref", None):
-                platform_name = rec.platform_ref.name
-            if not platform_name and isinstance(rec, Revenue):
-                platform_name = rec.platform or "غير محدد"
+            # Booking and Review store the platform as a SQLAlchemy relationship
+            # named `platform`, while Revenue keeps the legacy platform text in
+            # `platform` and the normalized relation in `platform_ref`.
+            if isinstance(rec, Revenue):
+                platform_obj = getattr(rec, "platform_ref", None)
+                platform_name = platform_obj.name if platform_obj else (rec.platform or "غير محدد")
+            else:
+                platform_obj = getattr(rec, "platform", None)
+                platform_name = platform_obj.name if platform_obj else "غير محدد"
+
             platform_name = platform_name or "غير محدد"
             totals[platform_name] = totals.get(platform_name, 0) + float(value_getter(rec) or 0)
+
         total = sum(totals.values())
-        return [{"platform": k, "value": round(v, 2), "percentage": round((v / total) * 100, 1) if total else 0} for k, v in sorted(totals.items(), key=lambda kv: kv[1], reverse=True)]
+        return [
+            {
+                "platform": k,
+                "value": round(v, 2),
+                "percentage": round((v / total) * 100, 1) if total else 0,
+            }
+            for k, v in sorted(totals.items(), key=lambda kv: kv[1], reverse=True)
+        ]
 
     platform_chart = {
         "bookings": platform_breakdown(bookings, lambda x: x.total_bookings),
@@ -913,6 +935,7 @@ def monthly_report(
         "hotel_id": hotel_id,
         "rows": current["rows"],
         "totals": current["totals"],
+        "platform_breakdown": current["platform_breakdown"],
         "previous": {
             "year": previous_year,
             "month": previous_month_number,

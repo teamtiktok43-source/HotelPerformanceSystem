@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getDashboard, getHotels, Hotel } from '../api'
+import { getDashboard, getHotels, getLocalDateString, Hotel } from '../api'
 import StatCard from '../components/StatCard'
 import PrintButton from '../components/PrintButton'
 import { useRealtime } from '../useRealtime'
@@ -42,7 +42,7 @@ const safe = (value: any) => Number.isFinite(Number(value)) ? Number(value) : 0
 
 export default function Home() {
   const tick = useRealtime()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getLocalDateString()
   const [start, setStart] = useState(`${today.slice(0, 8)}01`)
   const [end, setEnd] = useState(today)
   const [hotelId, setHotelId] = useState('')
@@ -74,7 +74,7 @@ export default function Home() {
 
   useEffect(() => {
     load()
-  }, [tick])
+  }, [tick, start, end, hotelId])
 
   const d = useMemo(
     () => ({

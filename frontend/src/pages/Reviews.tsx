@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createReview, getEmployees, getHotels, getPlatforms, getReviews, Hotel, Platform, Review, User } from '../api'
+import { createReview, getEmployees, getHotels, getPlatforms, getReviews, getLocalDateString, Hotel, Platform, Review, User } from '../api'
 import PrintButton from '../components/PrintButton'
 import { useRealtime } from '../useRealtime'
 import { Eye, MessageCircle, ShieldCheck } from 'lucide-react'
@@ -15,18 +15,31 @@ function statusLabel(status: string) {
 export default function Reviews({ user }: { user: User }) {
   const navigate = useNavigate()
   const tick = useRealtime()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getLocalDateString()
   const [hotels, setHotels] = useState<Hotel[]>([])
   const [platforms, setPlatforms] = useState<Platform[]>([])
   const [emps, setEmps] = useState<User[]>([])
   const [rows, setRows] = useState<Review[]>([])
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [hotelFilter, setHotelFilter] = useState('')
+  const [platformFilter, setPlatformFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [form, setForm] = useState({ booking_number: '', hotel_id: '', platform_id: '', rating: '5', comment: '', sentiment: 'Positive', review_date: today, proposed_action: '', employee_id: '' })
   const [toast, setToast] = useState('')
   const [error, setError] = useState(false)
 
-  const load = () => getReviews().then(setRows).catch((ex: any) => { setToast(ex?.message || 'تعذر تحميل التقييمات'); setError(true) })
+  const load = () => {
+    const params = new URLSearchParams()
+    if (start) params.set('start', start)
+    if (end) params.set('end', end)
+    if (hotelFilter) params.set('hotel_id', hotelFilter)
+    if (platformFilter) params.set('platform_id', platformFilter)
+    if (statusFilter) params.set('status', statusFilter)
+    return getReviews(params.toString()).then(setRows).catch((ex: any) => { setToast(ex?.message || 'تعذر تحميل التقييمات'); setError(true) })
+  }
   useEffect(() => { Promise.all([getHotels(), getEmployees(), getPlatforms()]).then(([h, e, p]) => { setHotels(h); setEmps(e); setPlatforms(p) }).catch(() => { setToast('تعذر تحميل بيانات النموذج'); setError(true) }) }, [])
-  useEffect(() => { load() }, [tick])
+  useEffect(() => { load() }, [tick, start, end, hotelFilter, platformFilter, statusFilter])
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -61,6 +74,15 @@ export default function Reviews({ user }: { user: User }) {
         </div>
         <button className="btn primary">حفظ التقييم</button>
       </form>
+
+      <div className="filters no-print">
+        <label>من<input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
+        <label>إلى<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
+        <label>الفندق<select value={hotelFilter} onChange={e => setHotelFilter(e.target.value)}><option value="">كل الفنادق</option>{hotels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></label>
+        <label>المنصة<select value={platformFilter} onChange={e => setPlatformFilter(e.target.value)}><option value="">كل المنصات</option>{platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+        <label>الحالة<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">كل الحالات</option><option value="Pending">قيد المراجعة</option><option value="Approved">معتمد</option><option value="Rejected">مرفوض</option></select></label>
+        <button className="btn secondary" onClick={() => load()}>عرض</button>
+      </div>
 
       <div className="panel print-friendly">
         <div className="section-toolbar"><div><h3>سجل التقييمات</h3><span>{rows.length} تقييم</span></div><span className="section-note">افتح التفاصيل لإدارة المحادثة والقرار</span></div>

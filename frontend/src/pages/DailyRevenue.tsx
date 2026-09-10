@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { createRevenue, getEmployees, getHotels, getPlatforms, Hotel, User, Platform, getRevenue } from '../api'
+import { createRevenue, getEmployees, getHotels, getPlatforms, getLocalDateString, Hotel, User, Platform, getRevenue } from '../api'
 import PrintButton from '../components/PrintButton'
 import { useRealtime } from '../useRealtime'
 import { HorizontalBars } from '../components/ReportCharts'
@@ -8,18 +8,28 @@ const safeNumber = (value: any) => Number.isFinite(Number(value)) ? Number(value
 
 export default function DailyRevenue() {
   const tick = useRealtime()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getLocalDateString()
   const [hotels, setHotels] = useState<Hotel[]>([])
   const [emps, setEmps] = useState<User[]>([])
   const [platforms, setPlatforms] = useState<Platform[]>([])
   const [rows, setRows] = useState<any[]>([])
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [hotelFilter, setHotelFilter] = useState('')
   const [platformFilter, setPlatformFilter] = useState('')
   const [form, setForm] = useState({ booking_number: '', hotel_id: '', platform: 'Booking.com', platform_id: '', revenue_date: today, actual_price: '', commissionable_amount: '', employee_id: '' })
   const [msg, setMsg] = useState('')
 
-  const load = () => getRevenue(new URLSearchParams(platformFilter ? { platform_id: platformFilter } as any : {}).toString()).then(setRows)
+  const load = () => {
+    const params = new URLSearchParams()
+    if (start) params.set('start', start)
+    if (end) params.set('end', end)
+    if (hotelFilter) params.set('hotel_id', hotelFilter)
+    if (platformFilter) params.set('platform_id', platformFilter)
+    return getRevenue(params.toString()).then(setRows)
+  }
   useEffect(() => { getHotels().then(setHotels); getEmployees().then(setEmps); getPlatforms().then(setPlatforms) }, [])
-  useEffect(() => { load() }, [tick])
+  useEffect(() => { load() }, [tick, start, end, hotelFilter, platformFilter])
 
   const hotel = hotels.find(h => String(h.id) === form.hotel_id)
   const rate = safeNumber(hotel?.commission_rate)
@@ -55,7 +65,13 @@ export default function DailyRevenue() {
       <label>صافي الإيراد<input disabled value={net.toFixed(2)} /></label>
       <label>الموظف<select value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}><option value="">أنا</option>{emps.filter(e => e.active).map(e => <option key={e.id} value={e.id}>{e.display_name}</option>)}</select></label>
     </div><button className="btn primary">حفظ الإيراد</button>{msg && <span className="inline-msg">{msg}</span>}</form>
-    <div className="filters no-print"><label>المنصة<select value={platformFilter} onChange={e => setPlatformFilter(e.target.value)}><option value="">كل المنصات</option>{platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><button className="btn secondary" onClick={load}>عرض</button></div>
+    <div className="filters no-print">
+      <label>من<input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
+      <label>إلى<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
+      <label>الفندق<select value={hotelFilter} onChange={e => setHotelFilter(e.target.value)}><option value="">كل الفنادق</option>{hotels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></label>
+      <label>المنصة<select value={platformFilter} onChange={e => setPlatformFilter(e.target.value)}><option value="">كل المنصات</option>{platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+      <button className="btn secondary" onClick={load}>عرض</button>
+    </div>
     <div className="report-layout print-friendly"><div className="panel"><h3>سجل الإيرادات</h3><div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>الحجز</th><th>الفندق</th><th>المنصة</th><th>الإجمالي</th><th>العمولة</th><th>الضريبة</th><th>الصافي</th><th>الموظف</th></tr></thead><tbody>{rows.map(r => <tr key={r.id}><td>{r.revenue_date}</td><td>{r.booking_number}</td><td>{r.hotel_name}</td><td>{r.platform_name || r.platform}</td><td>{safeNumber(r.actual_price).toFixed(2)}</td><td>{safeNumber(r.commission).toFixed(2)}</td><td>{safeNumber(r.tax).toFixed(2)}</td><td>{safeNumber(r.net_revenue).toFixed(2)}</td><td>{r.employee_name}</td></tr>)}</tbody></table></div></div><HorizontalBars title="صافي الإيراد حسب الفندق" data={chart} maxItems={7} /></div>
   </section>
 }
