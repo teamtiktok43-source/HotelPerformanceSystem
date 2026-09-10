@@ -740,11 +740,14 @@
   .monthly-print-ranking-head strong { font-size:8px; color:#173f65; }
   .monthly-print-ranking-head span { font-size:6px; color:#8a9aaa; }
   .monthly-print-ranking-list { padding:3px 8px 6px; }
-  .monthly-print-ranking-row { display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:6px; align-items:center; padding:4px 0; border-bottom:1px solid #eef2f5; }
+  .monthly-print-ranking-row { display:grid; grid-template-columns:20px minmax(0,1fr) 16px auto; gap:6px; align-items:center; padding:4px 0; border-bottom:1px solid #eef2f5; }
   .monthly-print-ranking-row:last-child { border-bottom:0; }
   .monthly-print-ranking-number { width:17px; height:17px; border-radius:5px; display:grid; place-items:center; background:#edf5fb; color:#176aa6; font-size:6px; font-weight:1000; }
   .monthly-print-ranking-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:7px; color:#445b70; }
   .monthly-print-ranking-row strong { font-size:7px; color:#163f67; }
+  .monthly-print-ranking-trend { width:14px; height:14px; display:grid; place-items:center; justify-self:center; flex:0 0 auto; }
+  .monthly-print-ranking-trend.up { color:#18863b; }
+  .monthly-print-ranking-trend.down { color:#d83a3a; }
 
   .monthly-print-comparison-table { border:1px solid #dbe5ee; border-radius:12px; overflow:hidden; }
   .monthly-print-comparison-head, .monthly-print-comparison-row { display:grid; grid-template-columns:1.15fr 1fr 1fr; }

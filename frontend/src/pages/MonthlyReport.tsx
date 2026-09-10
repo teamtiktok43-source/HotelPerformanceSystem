@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
+  ArrowDown,
+  ArrowUp,
   BarChart3,
   CalendarDays,
   CircleDollarSign,
@@ -118,12 +120,14 @@ function PrintRankingPanel({
   data,
   valueLabel,
   valueKey,
+  direction,
   valueFormatter = (value: number) => formatNumber(value),
 }: {
   title: string
   data: any[]
   valueLabel: string
   valueKey: 'bookings' | 'actual_revenue' | 'average_rating'
+  direction: 'up' | 'down'
   valueFormatter?: (value: number) => string
 }) {
   const items = [...data].slice(0, 10)
@@ -139,6 +143,13 @@ function PrintRankingPanel({
           <div className="monthly-print-ranking-row" key={`${title}-${index}`}>
             <span className="monthly-print-ranking-number">{index + 1}</span>
             <span className="monthly-print-ranking-name">{item?.hotel_name || '—'}</span>
+            <span
+              className={`monthly-print-ranking-trend ${direction}`}
+              aria-label={direction === 'up' ? 'اتجاه صاعد' : 'اتجاه هابط'}
+              title={direction === 'up' ? 'أعلى أداء' : 'أقل أداء'}
+            >
+              {direction === 'up' ? <ArrowUp size={10} strokeWidth={2.8} /> : <ArrowDown size={10} strokeWidth={2.8} />}
+            </span>
             <strong>{item ? valueFormatter(num(item[valueKey])) : '—'}</strong>
           </div>
         ))}
@@ -311,24 +322,24 @@ function MonthlyPrintReport({
         <div className="monthly-print-section-block">
           <div className="monthly-print-section-line"><h3>أداء الفنادق — الحجوزات</h3><span>الحجوزات الحالية</span></div>
           <div className="monthly-print-ranking-grid">
-            <PrintRankingPanel title="أعلى 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" valueKey="bookings" data={top10} />
-            <PrintRankingPanel title="أقل 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" valueKey="bookings" data={bottom10} />
+            <PrintRankingPanel title="أعلى 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" valueKey="bookings" direction="up" data={top10} />
+            <PrintRankingPanel title="أقل 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" valueKey="bookings" direction="down" data={bottom10} />
           </div>
         </div>
 
         <div className="monthly-print-section-block">
           <div className="monthly-print-section-line"><h3>أداء الفنادق — إجمالي الإيرادات</h3><span>{currentPeriodLabel}</span></div>
           <div className="monthly-print-ranking-grid">
-            <PrintRankingPanel title="أعلى 10 فنادق (إيرادات)" valueLabel="إجمالي الإيرادات" valueKey="actual_revenue" data={currentRevenue} valueFormatter={(v) => formatNumber(v, 2)} />
-            <PrintRankingPanel title="أقل 10 فنادق (إيرادات)" valueLabel="إجمالي الإيرادات" valueKey="actual_revenue" data={bottomRevenue} valueFormatter={(v) => formatNumber(v, 2)} />
+            <PrintRankingPanel title="أعلى 10 فنادق (إيرادات)" valueLabel="إجمالي الإيرادات" valueKey="actual_revenue" direction="up" data={currentRevenue} valueFormatter={(v) => formatNumber(v, 2)} />
+            <PrintRankingPanel title="أقل 10 فنادق (إيرادات)" valueLabel="إجمالي الإيرادات" valueKey="actual_revenue" direction="down" data={bottomRevenue} valueFormatter={(v) => formatNumber(v, 2)} />
           </div>
         </div>
 
         <div className="monthly-print-section-block">
           <div className="monthly-print-section-line"><h3>أداء الفنادق — التقييمات</h3><span>متوسط التقييم</span></div>
           <div className="monthly-print-ranking-grid">
-            <PrintRankingPanel title="أعلى 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" valueKey="average_rating" data={currentRatings} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
-            <PrintRankingPanel title="أقل 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" valueKey="average_rating" data={bottomRatings} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
+            <PrintRankingPanel title="أعلى 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" valueKey="average_rating" direction="up" data={currentRatings} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
+            <PrintRankingPanel title="أقل 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" valueKey="average_rating" direction="down" data={bottomRatings} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
           </div>
         </div>
 
