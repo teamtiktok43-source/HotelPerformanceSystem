@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   BarChart3,
   CalendarDays,
@@ -28,6 +29,428 @@ const num = (value: any) =>
 
 function previousMonth(y: number, m: number) {
   return m === 1 ? { year: y - 1, month: 12 } : { year: y, month: m - 1 }
+}
+
+
+function platformKey(name: string) {
+  const value = String(name || '').toLowerCase()
+  if (value.includes('booking')) return 'booking'
+  if (value.includes('expedia')) return 'expedia'
+  if (value.includes('trip')) return 'trip'
+  if (value.includes('agoda')) return 'agoda'
+  return 'other'
+}
+
+function PlatformPrintIcon({ name }: { name: string }) {
+  const key = platformKey(name)
+  return (
+    <span className={`monthly-platform-print-icon ${key}`} aria-hidden="true">
+      {key === 'booking' ? 'B' : key === 'expedia' ? '↗' : key === 'trip' ? 'T' : key === 'agoda' ? 'A' : '•'}
+    </span>
+  )
+}
+
+function formatNumber(value: number, fractionDigits = 0) {
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  })
+}
+
+function PrintMetricCard({
+  label,
+  value,
+  icon,
+  accent = 'blue',
+  suffix,
+}: {
+  label: string
+  value: string | number
+  icon: ReactNode
+  accent?: string
+  suffix?: string
+}) {
+  return (
+    <div className={`monthly-print-metric ${accent}`}>
+      <div className="monthly-print-metric-icon">{icon}</div>
+      <div className="monthly-print-metric-copy">
+        <span>{label}</span>
+        <strong>{value}{suffix ? <small>{suffix}</small> : null}</strong>
+      </div>
+    </div>
+  )
+}
+
+function PrintPlatformPanel({
+  title,
+  items,
+  emptyLabel = 'لا توجد بيانات',
+  formatValue = (v: number) => formatNumber(v),
+}: {
+  title: string
+  items: { platform: string; value: number; percentage: number }[]
+  emptyLabel?: string
+  formatValue?: (v: number) => string
+}) {
+  const rows = Array.isArray(items) ? items.filter((item) => num(item.value) > 0) : []
+  return (
+    <div className="monthly-print-platform-panel">
+      <div className="monthly-print-block-title">{title}</div>
+      {rows.length ? (
+        <div className="monthly-print-platform-list">
+          {rows.map((item) => (
+            <div className="monthly-print-platform-row" key={`${title}-${item.platform}`}>
+              <div className="monthly-print-platform-name">
+                <PlatformPrintIcon name={item.platform} />
+                <span>{item.platform}</span>
+              </div>
+              <strong>{formatValue(num(item.value))}</strong>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="monthly-print-empty">{emptyLabel}</div>
+      )}
+    </div>
+  )
+}
+
+function PrintRankingPanel({
+  title,
+  data,
+  valueLabel,
+  valueFormatter = (value: number) => formatNumber(value),
+}: {
+  title: string
+  data: any[]
+  valueLabel: string
+  valueFormatter?: (value: number) => string
+}) {
+  const items = [...data].slice(0, 10)
+  while (items.length < 10) items.push(null)
+  return (
+    <div className="monthly-print-ranking-panel">
+      <div className="monthly-print-ranking-head">
+        <strong>{title}</strong>
+        <span>{valueLabel}</span>
+      </div>
+      <div className="monthly-print-ranking-list">
+        {items.map((item, index) => (
+          <div className="monthly-print-ranking-row" key={`${title}-${index}`}>
+            <span className="monthly-print-ranking-number">{index + 1}</span>
+            <span className="monthly-print-ranking-name">{item?.hotel_name || '—'}</span>
+            <strong>{item ? valueFormatter(num(item.bookings ?? item.net_revenue ?? item.average_rating)) : '—'}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PrintComparisonTable({
+  currentLabel,
+  previousLabel,
+  current,
+  previous,
+}: {
+  currentLabel: string
+  previousLabel: string
+  current: { bookings: number; actual_revenue: number; reviews: number }
+  previous: { bookings: number; actual_revenue: number; reviews: number }
+}) {
+  const rows = [
+    ['إجمالي الحجوزات', current.bookings, previous.bookings, (v: number) => formatNumber(v)],
+    ['إجمالي الإيرادات', current.actual_revenue, previous.actual_revenue, (v: number) => formatNumber(v, 2)],
+    ['إجمالي التقييمات', current.reviews, previous.reviews, (v: number) => formatNumber(v)],
+  ] as const
+  return (
+    <div className="monthly-print-comparison-table">
+      <div className="monthly-print-comparison-head">
+        <div>المؤشر</div>
+        <div>{currentLabel}</div>
+        <div>{previousLabel}</div>
+      </div>
+      {rows.map(([label, currentValue, previousValue, formatter]) => (
+        <div className="monthly-print-comparison-row" key={label}>
+          <strong>{label}</strong>
+          <span>{formatter(num(currentValue))}</span>
+          <span>{formatter(num(previousValue))}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MonthlyPrintReport({
+  heroDate,
+  previousPeriod,
+  selectedHotelName,
+  totals,
+  prevTotals,
+  d,
+  top10,
+  bottom10,
+  currentRevenue,
+  previousRevenue,
+  currentRatings,
+  previousRatings,
+  rows,
+  bookingTop,
+  bookingBottom,
+}: {
+  heroDate: string
+  previousPeriod: { year: number; month: number }
+  selectedHotelName: string
+  totals: any
+  prevTotals: any
+  d: any
+  top10: any[]
+  bottom10: any[]
+  currentRevenue: any[]
+  previousRevenue: any[]
+  currentRatings: any[]
+  previousRatings: any[]
+  rows: any[]
+  bookingTop: number
+  bookingBottom: number
+}) {
+  const currentPeriodLabel = monthLabel(totals.__year, totals.__month)
+  const previousPeriodLabel = monthLabel(previousPeriod.year, previousPeriod.month)
+  const currentPlatformBookings = d.platform_breakdown?.bookings || []
+  const currentPlatformReviews = d.platform_breakdown?.reviews || []
+  const currentPlatformRevenue = d.platform_breakdown?.revenue || []
+
+  return (
+    <div className="monthly-print-report" aria-hidden="true">
+      <section className="monthly-print-page monthly-print-page-one">
+        <div className="monthly-print-header">
+          <div className="monthly-print-brand">
+            <div className="monthly-print-brand-mark">H</div>
+            <div>
+              <strong>HOTEL</strong>
+              <span>PERFORMANCE SYSTEM</span>
+            </div>
+          </div>
+          <div className="monthly-print-title">
+            <span>التقرير الشهري</span>
+            <strong>{heroDate}</strong>
+            <small>التقرير التفصيلي</small>
+          </div>
+          <div className="monthly-print-period-badge">
+            <span>الفترة الحالية</span>
+            <strong>{heroDate}</strong>
+          </div>
+        </div>
+
+        <div className="monthly-print-overview-grid">
+          <PrintMetricCard label="إجمالي الحجوزات" value={formatNumber(totals.bookings)} icon={<CalendarDays size={19} />} accent="cyan" />
+          <PrintMetricCard label="إجمالي الإيراد" value={formatNumber(totals.actual_revenue, 2)} suffix=" EGP" icon={<CircleDollarSign size={19} />} accent="gold" />
+          <PrintMetricCard label="إجمالي التقييمات" value={formatNumber(totals.reviews)} icon={<Star size={19} />} accent="pink" />
+          <PrintMetricCard label="متوسط التقييم" value={totals.average_rating.toFixed(2)} suffix=" /10" icon={<Star size={19} />} accent="violet" />
+          <PrintMetricCard label="صافي الإيراد" value={formatNumber(totals.net_revenue, 2)} suffix=" EGP" icon={<Coins size={19} />} accent="green" />
+          <PrintMetricCard label="النطاق" value={selectedHotelName} icon={<HotelIcon size={19} />} accent="blue" />
+        </div>
+
+        <div className="monthly-print-three-col">
+          <div className="monthly-print-card">
+            <div className="monthly-print-card-title"><span>الحجوزات</span><CalendarDays size={18} /></div>
+            <div className="monthly-print-big-number">{formatNumber(totals.bookings)}</div>
+            <PrintPlatformPanel title="الحجوزات حسب المنصة" items={currentPlatformBookings} />
+          </div>
+
+          <div className="monthly-print-card">
+            <div className="monthly-print-card-title"><span>الإيرادات</span><CircleDollarSign size={18} /></div>
+            <div className="monthly-print-big-number">{formatNumber(totals.actual_revenue, 2)} <small>EGP</small></div>
+            <div className="monthly-print-mini-grid">
+              <div><span>مدفوع</span><strong>{formatNumber(totals.paid)}</strong><small>حجز</small></div>
+              <div><span>كاش</span><strong>{formatNumber(totals.cash)}</strong><small>حجز</small></div>
+              <div><span>العمولة</span><strong>{formatNumber(totals.commission, 2)}</strong><small>EGP</small></div>
+              <div><span>الضرائب</span><strong>{formatNumber(totals.tax, 2)}</strong><small>EGP</small></div>
+            </div>
+          </div>
+
+          <div className="monthly-print-card">
+            <div className="monthly-print-card-title"><span>التقييمات</span><Star size={18} /></div>
+            <div className="monthly-print-big-number">{formatNumber(totals.reviews)}</div>
+            <PrintPlatformPanel title="التقييمات حسب المنصة" items={currentPlatformReviews} />
+          </div>
+        </div>
+
+        <div className="monthly-print-summary-strip">
+          <div><span>الفترة الحالية</span><strong>{currentPeriodLabel}</strong></div>
+          <div><span>الفترة السابقة</span><strong>{previousPeriodLabel}</strong></div>
+          <div><span>الفندق</span><strong>{selectedHotelName}</strong></div>
+          <div><span>إجمالي الحجوزات</span><strong>{formatNumber(totals.bookings)}</strong></div>
+          <div><span>متوسط التقييم</span><strong>{totals.average_rating.toFixed(2)} /10</strong></div>
+          <div><span>إجمالي الإيراد</span><strong>{formatNumber(totals.actual_revenue, 2)}</strong></div>
+        </div>
+
+        <PrintPlatformPanel
+          title="السعر الإجمالي حسب المنصة"
+          items={currentPlatformRevenue}
+          formatValue={(v) => `${formatNumber(v, 2)} EGP`}
+        />
+
+        <div className="monthly-print-footer">
+          <span>رؤية أوضح .. قرارات أسرع .. أداء أفضل</span>
+          <strong>1 / 4</strong>
+          <small>HOTEL PERFORMANCE SYSTEM — Confidential Report</small>
+        </div>
+      </section>
+
+      <section className="monthly-print-page monthly-print-page-two">
+        <div className="monthly-print-section-heading">
+          <div>
+            <span>MONTHLY HOTEL PERFORMANCE</span>
+            <h2>أداء الفنادق</h2>
+          </div>
+          <small>مقارنة أعلى 10 وأقل 10 فنادق</small>
+        </div>
+
+        <div className="monthly-print-section-block">
+          <div className="monthly-print-section-line"><h3>أداء الفنادق — الحجوزات</h3><span>الحجوزات الحالية</span></div>
+          <div className="monthly-print-ranking-grid">
+            <PrintRankingPanel title="أعلى 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" data={top10} />
+            <PrintRankingPanel title="أقل 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" data={bottom10} />
+          </div>
+        </div>
+
+        <div className="monthly-print-section-block">
+          <div className="monthly-print-section-line"><h3>أداء الفنادق — إجمالي الإيرادات</h3><span>{currentPeriodLabel}</span></div>
+          <div className="monthly-print-ranking-grid">
+            <PrintRankingPanel title="أعلى 10 فنادق (إيرادات)" valueLabel="صافي الإيراد" data={currentRevenue} valueFormatter={(v) => formatNumber(v, 2)} />
+            <PrintRankingPanel title="أقل 10 فنادق (إيرادات)" valueLabel="صافي الإيراد" data={[...rows].filter((r) => num(r.net_revenue) > 0).sort((a,b) => num(a.net_revenue)-num(b.net_revenue)).slice(0,10)} valueFormatter={(v) => formatNumber(v, 2)} />
+          </div>
+        </div>
+
+        <div className="monthly-print-section-block">
+          <div className="monthly-print-section-line"><h3>أداء الفنادق — التقييمات</h3><span>متوسط التقييم</span></div>
+          <div className="monthly-print-ranking-grid">
+            <PrintRankingPanel title="أعلى 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" data={currentRatings} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
+            <PrintRankingPanel title="أقل 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" data={[...currentRatings].sort((a,b) => num(a.average_rating)-num(b.average_rating))} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
+          </div>
+        </div>
+
+        <div className="monthly-print-footer">
+          <span>Monthly Performance Analysis</span>
+          <strong>2 / 4</strong>
+          <small>{heroDate}</small>
+        </div>
+      </section>
+
+      <section className="monthly-print-page monthly-print-page-three">
+        <div className="monthly-print-section-heading">
+          <div>
+            <span>CURRENT VS PREVIOUS</span>
+            <h2>المقارنة الشهرية</h2>
+          </div>
+          <small>{currentPeriodLabel} مقابل {previousPeriodLabel}</small>
+        </div>
+
+        <PrintComparisonTable
+          currentLabel={currentPeriodLabel}
+          previousLabel={previousPeriodLabel}
+          current={totals}
+          previous={prevTotals}
+        />
+
+        <div className="monthly-print-comparison-kpis">
+          <div><span>الحجوزات</span><strong>{formatNumber(totals.bookings)}</strong><small>السابق {formatNumber(prevTotals.bookings)}</small></div>
+          <div><span>الإيرادات</span><strong>{formatNumber(totals.actual_revenue, 2)}</strong><small>السابق {formatNumber(prevTotals.actual_revenue, 2)}</small></div>
+          <div><span>التقييمات</span><strong>{formatNumber(totals.reviews)}</strong><small>السابق {formatNumber(prevTotals.reviews)}</small></div>
+        </div>
+
+        <div className="monthly-print-donut-grid">
+          <ComparisonDonut title="الحجوزات — الحالي مقابل السابق" current={totals.bookings} previous={prevTotals.bookings} />
+          <ComparisonDonut title="الإيرادات — الحالي مقابل السابق" current={totals.actual_revenue} previous={prevTotals.actual_revenue} formatValue={(v) => formatNumber(v, 2)} />
+          <ComparisonDonut title="التقييمات — الحالي مقابل السابق" current={totals.reviews} previous={prevTotals.reviews} />
+          <ComparisonDonut title="متوسط التقييم — الحالي مقابل السابق" current={totals.average_rating} previous={prevTotals.average_rating} formatValue={(v) => v.toFixed(2)} />
+        </div>
+
+        <div className="monthly-print-bottom-insight">
+          <div>
+            <span>أعلى 10 فنادق — الحجوزات</span>
+            <strong>{formatNumber(bookingTop)}</strong>
+          </div>
+          <div>
+            <span>أقل 10 فنادق — الحجوزات</span>
+            <strong>{formatNumber(bookingBottom)}</strong>
+          </div>
+          <div>
+            <span>صافي الإيراد الحالي</span>
+            <strong>{formatNumber(totals.net_revenue, 2)}</strong>
+          </div>
+        </div>
+
+        <div className="monthly-print-footer">
+          <span>Current vs Previous Month</span>
+          <strong>3 / 4</strong>
+          <small>{previousPeriodLabel}</small>
+        </div>
+      </section>
+
+      <section className="monthly-print-page monthly-print-page-four">
+        <div className="monthly-print-section-heading detail">
+          <div>
+            <span>DETAILED WRITTEN REPORT</span>
+            <h2>التقرير المكتوب التفصيلي</h2>
+          </div>
+          <small>{heroDate} — {selectedHotelName}</small>
+        </div>
+
+        <div className="monthly-print-detail-panel">
+          <div className="monthly-print-detail-heading">
+            <strong>تفاصيل أداء جميع الفنادق</strong>
+            <span>الحجوزات • المدفوع • الكاش • السعر الإجمالي • العمولة • الضرائب • الصافي • التقييمات</span>
+          </div>
+          <table className="monthly-print-detail-table">
+            <thead>
+              <tr>
+                <th>الفندق</th>
+                <th>الحجوزات</th>
+                <th>مدفوع</th>
+                <th>كاش</th>
+                <th>السعر الإجمالي</th>
+                <th>العمولة</th>
+                <th>الضرائب</th>
+                <th>الصافي</th>
+                <th>التقييمات</th>
+                <th>متوسط التقييم</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length ? rows.map((row: any) => (
+                <tr key={row.hotel_name}>
+                  <td>{row.hotel_name}</td>
+                  <td>{formatNumber(num(row.bookings))}</td>
+                  <td>{formatNumber(num(row.paid))}</td>
+                  <td>{formatNumber(num(row.cash))}</td>
+                  <td>{formatNumber(num(row.actual_revenue), 2)}</td>
+                  <td>{formatNumber(num(row.commission), 2)}</td>
+                  <td>{formatNumber(num(row.tax), 2)}</td>
+                  <td>{formatNumber(num(row.net_revenue), 2)}</td>
+                  <td>{formatNumber(num(row.review_count))}</td>
+                  <td>{num(row.average_rating).toFixed(2)}</td>
+                </tr>
+              )) : (
+                <tr><td colSpan={10} className="monthly-print-detail-empty">لا توجد بيانات لهذه الفترة.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="monthly-print-detail-note">
+          التقرير يعرض البيانات الحالية للفترة المحددة مع الحفاظ على جميع الفنادق المسجلة، بما فيها الفنادق التي لا تحتوي على حركة خلال الشهر.
+        </div>
+
+        <div className="monthly-print-footer">
+          <span>رؤية أوضح .. قرارات أسرع .. أداء أفضل</span>
+          <strong>4 / 4</strong>
+          <small>HOTEL PERFORMANCE SYSTEM — Confidential Report</small>
+        </div>
+      </section>
+    </div>
+  )
 }
 
 export default function MonthlyReport() {
@@ -553,6 +976,23 @@ export default function MonthlyReport() {
           </table>
         </div>
       </section>
+      <MonthlyPrintReport
+        heroDate={heroDate}
+        previousPeriod={previousPeriod}
+        selectedHotelName={selectedHotelName}
+        totals={{ ...totals, __year: y, __month: m }}
+        prevTotals={prevTotals}
+        d={d}
+        top10={top10}
+        bottom10={bottom10}
+        currentRevenue={currentRevenue}
+        previousRevenue={previousRevenue}
+        currentRatings={currentRatings}
+        previousRatings={previousRatings}
+        rows={rows}
+        bookingTop={bookingTop}
+        bookingBottom={bookingBottom}
+      />
     </section>
   )
 }

@@ -154,6 +154,14 @@ export function ComparisonDonut({
 
 
 
+
+function PlatformBrandIcon({ name }: { name: string }) {
+  const value = String(name || '').toLowerCase()
+  const cls = value.includes('booking') ? 'booking' : value.includes('expedia') ? 'expedia' : value.includes('trip') ? 'trip' : value.includes('agoda') ? 'agoda' : 'other'
+  const label = cls === 'booking' ? 'B' : cls === 'expedia' ? '↗' : cls === 'trip' ? 'T' : cls === 'agoda' ? 'A' : '•'
+  return <span className={`platform-brand-icon ${cls}`} aria-hidden="true">{label}</span>
+}
+
 export function PlatformShareChart({ title, items }: { title: string; items: { platform: string; value: number; percentage: number }[] }) {
   const palette = ['#146db2', '#22a879', '#f59e0b', '#8b5cf6', '#ef476f', '#607d8b', '#0ea5e9', '#94a3b8']
   const rows = Array.isArray(items) ? items.filter(x => n(x.value) > 0) : []
@@ -161,6 +169,6 @@ export function PlatformShareChart({ title, items }: { title: string; items: { p
   return <div className="platform-chart-card">
     <div className="visual-chart-title">{title}</div>
     <div className="platform-stack">{rows.length ? rows.map((x, i) => <span key={`${x.platform}-${i}`} title={`${x.platform}: ${x.percentage}%`} style={{ width: `${Math.max(1, n(x.percentage))}%`, background: palette[i % palette.length] }} />) : <span style={{ width: '100%', background: '#dce5ec' }} />}</div>
-    <div className="platform-legend">{rows.length ? rows.map((x, i) => <div className="platform-legend-item" key={`${x.platform}-legend-${i}`}><span className="platform-color" style={{ background: palette[i % palette.length] }} /><span>{x.platform}</span><strong>{total ? `${n(x.percentage).toFixed(1)}%` : '0%'}</strong></div>) : <div className="chart-empty">لا توجد بيانات</div>}</div>
+    <div className="platform-legend">{rows.length ? rows.map((x, i) => <div className="platform-legend-item" key={`${x.platform}-legend-${i}`}><PlatformBrandIcon name={x.platform} /><span className="platform-legend-name">{x.platform}</span><strong>{total ? `${n(x.percentage).toFixed(1)}%` : '0%'}</strong></div>) : <div className="chart-empty">لا توجد بيانات</div>}</div>
   </div>
 }
