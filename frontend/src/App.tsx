@@ -23,19 +23,41 @@ import Hotels from './pages/Hotels';
 import Employees from './pages/Employees';
 import Data from './pages/Data';
 import Platforms from './pages/Platforms';
+import License from './pages/License';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(getAuthUser());
   const nav = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      apiFetch<User>('/api/auth/me').catch(() => {
+    const handleExpired = () => {
+      if (user?.id !== 1) {
         logout();
         setUser(null);
         nav('/login');
-      });
-    }
+      }
+    };
+    window.addEventListener('hps-license-expired', handleExpired);
+    return () => window.removeEventListener('hps-license-expired', handleExpired);
+  }, [user, nav]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const checkSession = async () => {
+      try {
+        await apiFetch<User>('/api/auth/me');
+      } catch {
+        if (!cancelled) {
+          logout();
+          setUser(null);
+          nav('/login');
+        }
+      }
+    };
+    checkSession();
+    const timer = window.setInterval(checkSession, 60_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
   }, [user, nav]);
 
   if (!user) {
@@ -68,6 +90,7 @@ export default function App() {
     >
       <Routes>
         <Route path="/" element={<Home />} />
+        {user.id === 1 && <Route path="/license" element={<License />} />}
 
         <Route path="/bookings" element={<DailyBookings />} />
 

@@ -6,12 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, or_, text, delete
 from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
-from .models import Booking, Hotel, Platform, Revenue, Review, ReviewComment, Notification, User
+from .models import Booking, Hotel, Platform, Revenue, Review, ReviewComment, Notification, User, SystemLicense, ActivationKey
 from .schemas import (BookingCreate, BookingUpdate, EmployeeCreate, EmployeeUpdate, HotelCreate, HotelUpdate,
-                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, ReviewCommentCreate, PlatformCreate, PlatformUpdate)
+                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, ReviewCommentCreate, PlatformCreate, PlatformUpdate, LicenseActivateRequest)
 from .auth import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from .seed import seed_defaults
 from .websocket import manager
+from .license import SYSTEM_OWNER_USER_ID, DEFAULT_LICENSE_DAYS, generate_activation_key, get_license, hash_activation_key, is_license_active, is_owner, license_to_dict, utcnow
 
 app = FastAPI(title="Hotel Performance System API", version="1.0.0")
 
@@ -187,12 +188,55 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(func.lower(User.username) == payload.username.lower()).first()
     if not user or not user.active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password")
+    license_row = get_license(db)
+    if not is_license_active(license_row) and not is_owner(user.id):
+        raise HTTPException(status_code=423, detail="LICENSE_EXPIRED")
     token = create_access_token({"sub": str(user.id), "role": user.role, "username": user.username})
-    return {"access_token": token, "token_type": "bearer", "user": user_to_dict(user)}
+    return {"access_token": token, "token_type": "bearer", "user": user_to_dict(user), "license": license_to_dict(license_row)}
 
 @app.get("/api/auth/me")
 def me(user: User = Depends(get_current_user)):
     return user_to_dict(user)
+
+@app.get("/api/system/license")
+def system_license(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    license_row = get_license(db)
+    return license_to_dict(license_row)
+
+
+@app.post("/api/system/license/keys", status_code=201)
+def create_license_key(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if not is_owner(user.id):
+        raise HTTPException(status_code=403, detail="System owner required")
+    raw_key = generate_activation_key()
+    key_row = ActivationKey(
+        key_hash=hash_activation_key(raw_key),
+        key_preview=raw_key[-8:],
+        created_by=user.id,
+    )
+    db.add(key_row)
+    db.commit()
+    db.refresh(key_row)
+    return {"activation_key": raw_key, "created_at": key_row.created_at.isoformat(), "duration_days": DEFAULT_LICENSE_DAYS}
+
+
+@app.post("/api/system/license/activate")
+def activate_license(payload: LicenseActivateRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if not is_owner(user.id):
+        raise HTTPException(status_code=403, detail="System owner required")
+    normalized_key = payload.activation_key.strip().upper()
+    key_row = db.query(ActivationKey).filter(ActivationKey.key_hash == hash_activation_key(normalized_key)).first()
+    if not key_row or key_row.used_at is not None:
+        raise HTTPException(status_code=400, detail="INVALID_OR_USED_LICENSE_KEY")
+    license_row = get_license(db)
+    now = utcnow()
+    license_row.activated_at = now
+    license_row.expires_at = now + __import__("datetime").timedelta(days=DEFAULT_LICENSE_DAYS)
+    key_row.used_at = now
+    key_row.used_by = user.id
+    db.commit()
+    db.refresh(license_row)
+    return {"message": "LICENSE_ACTIVATED", "license": license_to_dict(license_row)}
 
 @app.get("/api/platforms")
 def platforms(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -284,6 +328,9 @@ def update_employee(employee_id: int, payload: EmployeeUpdate, db: Session = Dep
     if user.role != "admin": raise HTTPException(403, "Admin required")
     u = db.get(User, employee_id)
     if not u: raise HTTPException(404, "Employee not found")
+    if employee_id == SYSTEM_OWNER_USER_ID:
+        if payload.active is False or (payload.role is not None and payload.role != "admin"):
+            raise HTTPException(400, "The system owner account cannot be disabled or changed from admin")
     for field in ("display_name", "role", "active"):
         value = getattr(payload, field)
         if value is not None: setattr(u, field, value)
@@ -300,6 +347,8 @@ def delete_employee(employee_id: int, db: Session = Depends(get_db), user: User 
     u = db.get(User, employee_id)
     if not u:
         raise HTTPException(404, "Employee not found")
+    if employee_id == SYSTEM_OWNER_USER_ID:
+        raise HTTPException(400, "The system owner account cannot be deleted")
 
     booking_count = db.query(Booking).filter(Booking.employee_id == employee_id).count()
     revenue_count = db.query(Revenue).filter(Revenue.employee_id == employee_id).count()
@@ -856,7 +905,6 @@ def monthly_report(
         "hotel_id": hotel_id,
         "rows": current["rows"],
         "totals": current["totals"],
-        "platform_breakdown": current["platform_breakdown"],
         "previous": {
             "year": previous_year,
             "month": previous_month_number,

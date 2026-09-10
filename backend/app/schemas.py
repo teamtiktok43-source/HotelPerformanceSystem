@@ -123,3 +123,7 @@ class PlatformUpdate(BaseModel):
 
 class ModelConfig(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+
+class LicenseActivateRequest(BaseModel):
+    activation_key: str = Field(min_length=12, max_length=32)

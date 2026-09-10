@@ -39,6 +39,8 @@ export type Review = {
   unread_comment_count?: number
   comments?: ReviewComment[]
 }
+export type LicenseInfo = { active: boolean; activated_at: string | null; expires_at: string | null; remaining_days: number; remaining_seconds: number; owner_user_id: number }
+
 export type Notification = {
   id: number
   recipient_id: number
@@ -61,9 +63,20 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   if (t) headers.set('Authorization', `Bearer ${t}`)
   const r = await fetch(`${API_BASE}${path}`, { ...options, headers })
   const d = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(d.detail || 'حدث خطأ في الاتصال')
+  if (!r.ok) {
+    if (d.detail === 'LICENSE_EXPIRED') {
+      window.dispatchEvent(new CustomEvent('hps-license-expired'))
+      throw new Error('LICENSE_EXPIRED')
+    }
+    if (d.detail === 'INVALID_OR_USED_LICENSE_KEY') throw new Error('مفتاح التفعيل غير صالح أو تم استخدامه من قبل.')
+    throw new Error(d.detail || 'حدث خطأ في الاتصال')
+  }
   return d as T
 }
+
+export const getLicense = () => apiFetch<LicenseInfo>('/api/system/license')
+export const createLicenseKey = () => apiFetch<{ activation_key: string; created_at: string; duration_days: number }>('/api/system/license/keys', { method: 'POST' })
+export const activateLicense = (activationKey: string) => apiFetch<{ message: string; license: LicenseInfo }>('/api/system/license/activate', { method: 'POST', body: JSON.stringify({ activation_key: activationKey }) })
 
 export const getHotels = () => apiFetch<Hotel[]>('/api/hotels')
 export const getPlatforms = () => apiFetch<Platform[]>('/api/platforms')

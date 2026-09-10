@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User
+from .license import get_license, is_license_active, is_owner
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-change-this-secret")
 ALGORITHM = "HS256"
@@ -58,6 +59,9 @@ def get_current_user(
     user = db.get(User, int(user_id)) if user_id else None
     if not user or not user.active:
         raise HTTPException(status_code=401, detail="User is not active")
+    license_row = get_license(db)
+    if not is_license_active(license_row) and not is_owner(user.id):
+        raise HTTPException(status_code=423, detail="LICENSE_EXPIRED")
     return user
 
 

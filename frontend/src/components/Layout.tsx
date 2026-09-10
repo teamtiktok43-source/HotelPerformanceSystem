@@ -24,7 +24,7 @@ export default function Layout({ user, onLogout, children }: { user: User; onLog
           <div className="brand-icon">H</div>
           <div><strong>Hotel Performance</strong><small>System</small></div>
         </div>
-        <nav>{items.map(([to, label]) => <NavLink key={to} to={to} end={to === '/'}>{label}</NavLink>)}</nav>
+        <nav>{items.map(([to, label]) => <NavLink key={to} to={to} end={to === '/'}>{label}</NavLink>)}{user.id === 1 && <NavLink to="/license">إدارة الترخيص</NavLink>}</nav>
         <button className="logout" onClick={onLogout}>تسجيل الخروج</button>
       </aside>
       <main className="main">

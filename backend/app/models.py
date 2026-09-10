@@ -16,6 +16,28 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class SystemLicense(Base):
+    __tablename__ = "system_license"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ActivationKey(Base):
+    __tablename__ = "activation_keys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    key_preview: Mapped[str] = mapped_column(String(19))
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    used_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+
 class Platform(Base):
     __tablename__ = "platforms"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
