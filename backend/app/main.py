@@ -856,6 +856,7 @@ def monthly_report(
         "hotel_id": hotel_id,
         "rows": current["rows"],
         "totals": current["totals"],
+        "platform_breakdown": current["platform_breakdown"],
         "previous": {
             "year": previous_year,
             "month": previous_month_number,
