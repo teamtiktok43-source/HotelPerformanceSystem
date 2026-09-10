@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, KeyRound, LockKeyhole, ShieldCheck, TimerReset } from 'lucide-react'
-import { activateLicense, createLicenseKey, getLicense, LicenseInfo } from '../api'
+import { activateLicense, createLicenseKey, deactivateLicense, getLicense, LicenseInfo } from '../api'
 
 function formatDate(value: string | null) {
   if (!value) return '—'
@@ -14,6 +14,7 @@ export default function License() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false)
 
   async function load() {
     try {
@@ -34,6 +35,18 @@ export default function License() {
       setMessage('تم إنشاء مفتاح تفعيل جديد. احتفظ به أو استخدمه الآن.')
     } catch (e: any) {
       setError(e?.message || 'تعذر إنشاء مفتاح التفعيل')
+    } finally { setBusy(false) }
+  }
+
+  async function deactivate() {
+    setBusy(true); setMessage(''); setError('')
+    try {
+      const r = await deactivateLicense()
+      setLicense(r.license)
+      setMessage('تم إلغاء تفعيل النظام بنجاح. يلزم تفعيل جديد لإعادة تشغيله للمستخدمين.')
+      setConfirmDeactivate(false)
+    } catch (e: any) {
+      setError(e?.message || 'تعذر إلغاء تفعيل النظام')
     } finally { setBusy(false) }
   }
 
@@ -99,10 +112,30 @@ export default function License() {
             <h3>إنشاء مفتاح تفعيل</h3>
             <p>يتم إنشاء مفتاح عشوائي قوي مرة واحدة وتخزين نسخة مشفرة منه.</p>
           </div>
-          <button className="btn primary" onClick={generate} disabled={busy}>
-            <KeyRound size={18} /> إنشاء مفتاح جديد
-          </button>
+          <div className="license-panel-actions">
+            <button className="btn primary" onClick={generate} disabled={busy}>
+              <KeyRound size={18} /> إنشاء مفتاح جديد
+            </button>
+            {license?.active && (
+              <button className="btn danger" onClick={() => setConfirmDeactivate(true)} disabled={busy}>
+                <TimerReset size={18} /> إلغاء التفعيل
+              </button>
+            )}
+          </div>
         </div>
+
+        {confirmDeactivate && license?.active && (
+          <div className="license-confirm">
+            <div>
+              <strong>إلغاء تفعيل النظام الآن؟</strong>
+              <p>سيتم إيقاف دخول المستخدمين الآخرين فورًا، وسيحتاج النظام إلى تفعيل جديد للعودة للعمل.</p>
+            </div>
+            <div className="license-confirm-actions">
+              <button className="btn danger" onClick={deactivate} disabled={busy}>تأكيد إلغاء التفعيل</button>
+              <button className="btn" onClick={() => setConfirmDeactivate(false)} disabled={busy}>إلغاء</button>
+            </div>
+          </div>
+        )}
 
         {generatedKey && (
           <div className="generated-key">

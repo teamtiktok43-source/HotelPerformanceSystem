@@ -49,6 +49,15 @@ def is_license_active(license_row: SystemLicense, now: datetime | None = None) -
     return bool(license_row.expires_at and license_row.expires_at > current)
 
 
+def deactivate_license(db: Session) -> SystemLicense:
+    license_row = get_license(db)
+    now = utcnow()
+    license_row.expires_at = now
+    db.commit()
+    db.refresh(license_row)
+    return license_row
+
+
 def license_to_dict(license_row: SystemLicense) -> dict:
     now = utcnow()
     active = is_license_active(license_row, now)

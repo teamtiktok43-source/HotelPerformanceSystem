@@ -77,6 +77,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 export const getLicense = () => apiFetch<LicenseInfo>('/api/system/license')
 export const createLicenseKey = () => apiFetch<{ activation_key: string; created_at: string; duration_days: number }>('/api/system/license/keys', { method: 'POST' })
 export const activateLicense = (activationKey: string) => apiFetch<{ message: string; license: LicenseInfo }>('/api/system/license/activate', { method: 'POST', body: JSON.stringify({ activation_key: activationKey }) })
+export const deactivateLicense = () => apiFetch<{ message: string; license: LicenseInfo }>('/api/system/license/deactivate', { method: 'POST' })
 
 export const getHotels = () => apiFetch<Hotel[]>('/api/hotels')
 export const getPlatforms = () => apiFetch<Platform[]>('/api/platforms')

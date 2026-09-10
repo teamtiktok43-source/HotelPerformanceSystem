@@ -12,7 +12,7 @@ from .schemas import (BookingCreate, BookingUpdate, EmployeeCreate, EmployeeUpda
 from .auth import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from .seed import seed_defaults
 from .websocket import manager
-from .license import SYSTEM_OWNER_USER_ID, DEFAULT_LICENSE_DAYS, generate_activation_key, get_license, hash_activation_key, is_license_active, is_owner, license_to_dict, utcnow
+from .license import SYSTEM_OWNER_USER_ID, DEFAULT_LICENSE_DAYS, generate_activation_key, get_license, hash_activation_key, is_license_active, is_owner, license_to_dict, utcnow, deactivate_license
 
 app = FastAPI(title="Hotel Performance System API", version="1.0.0")
 
@@ -218,6 +218,14 @@ def create_license_key(db: Session = Depends(get_db), user: User = Depends(get_c
     db.commit()
     db.refresh(key_row)
     return {"activation_key": raw_key, "created_at": key_row.created_at.isoformat(), "duration_days": DEFAULT_LICENSE_DAYS}
+
+
+@app.post("/api/system/license/deactivate")
+def deactivate_system_license(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if not is_owner(user.id):
+        raise HTTPException(status_code=403, detail="System owner required")
+    license_row = deactivate_license(db)
+    return {"message": "LICENSE_DEACTIVATED", "license": license_to_dict(license_row)}
 
 
 @app.post("/api/system/license/activate")
