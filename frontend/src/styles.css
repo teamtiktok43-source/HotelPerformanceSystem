@@ -3,6 +3,8 @@
 @media(max-width:1200px){.stats{grid-template-columns:repeat(4,1fr)}.chart-grid{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:850px){.sidebar{width:86px}.brand strong,.brand small,nav a{font-size:0}nav a{height:44px;position:relative}.main{padding:0 10px}.quick-grid,.chart-grid,.report-layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}@media(max-width:580px){header{align-items:flex-start}
 .creator-credit{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:13px;font-weight:700;letter-spacing:.1px;color:#47749d;white-space:nowrap;pointer-events:none;user-select:none;opacity:.86}
 @media (max-width:900px){.creator-credit{position:static;transform:none;margin-inline:auto;font-size:12px}}.page-head{flex-direction:column}.form-grid{grid-template-columns:1fr}.form-grid .span-2{grid-column:auto}.stats{grid-template-columns:1fr 1fr}.filters label{min-width:100%}}
+
+.print-footer{display:none}
 @media print{body{background:#fff}.sidebar,header,.no-print,.login-page{display:none!important}.main{padding:0}.page{max-width:none}.panel,.form-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid}.print-friendly{break-inside:avoid}.chart-grid,.report-layout{grid-template-columns:1fr 1fr}.stat-card{border:1px solid #ccc}.stats{grid-template-columns:repeat(4,1fr)}table{min-width:0;font-size:10px}th,td{padding:5px}.page-head{margin-bottom:8px}.page-head h2{font-size:20px}}
 
 .table-input {
@@ -491,7 +493,6 @@
 }
 @media(max-width:680px){
   .header-actions { gap:6px; }
-  .creator-credit { display:none; }
   .header-branding h1 { font-size:18px; }
   .detail-facts { grid-template-columns:1fr; }
   .notification-dropdown { width:min(360px,calc(100vw - 20px)); }
@@ -637,3 +638,25 @@
 .btn.danger { background:#b83a3a; color:#fff; border-color:#b83a3a; }
 .btn.danger:hover { background:#9f3030; }
 @media (max-width: 700px) { .license-confirm { flex-direction:column; align-items:stretch; } .license-confirm-actions { width:100%; } .license-confirm-actions .btn { flex:1; } }
+
+
+/* Global print footer */
+@media print{
+  .print-footer{
+    display:block!important;
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:1.5mm;
+    z-index:9999;
+    text-align:center;
+    font-size:8px;
+    line-height:1.2;
+    font-weight:600;
+    letter-spacing:.15px;
+    color:#64748b;
+    pointer-events:none;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+}
