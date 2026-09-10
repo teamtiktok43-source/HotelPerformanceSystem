@@ -4,10 +4,8 @@ import {
   BarChart3,
   CalendarDays,
   CircleDollarSign,
-  Coins,
   CreditCard,
   Hotel as HotelIcon,
-  Receipt,
   Star,
   Users,
 } from 'lucide-react'
@@ -119,11 +117,13 @@ function PrintRankingPanel({
   title,
   data,
   valueLabel,
+  valueKey,
   valueFormatter = (value: number) => formatNumber(value),
 }: {
   title: string
   data: any[]
   valueLabel: string
+  valueKey: 'bookings' | 'actual_revenue' | 'average_rating'
   valueFormatter?: (value: number) => string
 }) {
   const items = [...data].slice(0, 10)
@@ -139,7 +139,7 @@ function PrintRankingPanel({
           <div className="monthly-print-ranking-row" key={`${title}-${index}`}>
             <span className="monthly-print-ranking-number">{index + 1}</span>
             <span className="monthly-print-ranking-name">{item?.hotel_name || '—'}</span>
-            <strong>{item ? valueFormatter(num(item.bookings ?? item.net_revenue ?? item.average_rating)) : '—'}</strong>
+            <strong>{item ? valueFormatter(num(item[valueKey])) : '—'}</strong>
           </div>
         ))}
       </div>
@@ -191,8 +191,10 @@ function MonthlyPrintReport({
   top10,
   bottom10,
   currentRevenue,
+  bottomRevenue,
   previousRevenue,
   currentRatings,
+  bottomRatings,
   previousRatings,
   rows,
   bookingTop,
@@ -207,8 +209,10 @@ function MonthlyPrintReport({
   top10: any[]
   bottom10: any[]
   currentRevenue: any[]
+  bottomRevenue: any[]
   previousRevenue: any[]
   currentRatings: any[]
+  bottomRatings: any[]
   previousRatings: any[]
   rows: any[]
   bookingTop: number
@@ -247,7 +251,6 @@ function MonthlyPrintReport({
           <PrintMetricCard label="إجمالي الإيراد" value={formatNumber(totals.actual_revenue, 2)} suffix=" EGP" icon={<CircleDollarSign size={19} />} accent="gold" />
           <PrintMetricCard label="إجمالي التقييمات" value={formatNumber(totals.reviews)} icon={<Star size={19} />} accent="pink" />
           <PrintMetricCard label="متوسط التقييم" value={totals.average_rating.toFixed(2)} suffix=" /10" icon={<Star size={19} />} accent="violet" />
-          <PrintMetricCard label="صافي الإيراد" value={formatNumber(totals.net_revenue, 2)} suffix=" EGP" icon={<Coins size={19} />} accent="green" />
           <PrintMetricCard label="النطاق" value={selectedHotelName} icon={<HotelIcon size={19} />} accent="blue" />
         </div>
 
@@ -264,8 +267,6 @@ function MonthlyPrintReport({
             <div className="monthly-print-mini-grid">
               <div><span>مدفوع</span><strong>{formatNumber(totals.paid)}</strong><small>حجز</small></div>
               <div><span>كاش</span><strong>{formatNumber(totals.cash)}</strong><small>حجز</small></div>
-              <div><span>العمولة</span><strong>{formatNumber(totals.commission, 2)}</strong><small>EGP</small></div>
-              <div><span>الضرائب</span><strong>{formatNumber(totals.tax, 2)}</strong><small>EGP</small></div>
             </div>
           </div>
 
@@ -310,24 +311,24 @@ function MonthlyPrintReport({
         <div className="monthly-print-section-block">
           <div className="monthly-print-section-line"><h3>أداء الفنادق — الحجوزات</h3><span>الحجوزات الحالية</span></div>
           <div className="monthly-print-ranking-grid">
-            <PrintRankingPanel title="أعلى 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" data={top10} />
-            <PrintRankingPanel title="أقل 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" data={bottom10} />
+            <PrintRankingPanel title="أعلى 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" valueKey="bookings" data={top10} />
+            <PrintRankingPanel title="أقل 10 فنادق (حجوزات)" valueLabel="عدد الحجوزات" valueKey="bookings" data={bottom10} />
           </div>
         </div>
 
         <div className="monthly-print-section-block">
           <div className="monthly-print-section-line"><h3>أداء الفنادق — إجمالي الإيرادات</h3><span>{currentPeriodLabel}</span></div>
           <div className="monthly-print-ranking-grid">
-            <PrintRankingPanel title="أعلى 10 فنادق (إيرادات)" valueLabel="صافي الإيراد" data={currentRevenue} valueFormatter={(v) => formatNumber(v, 2)} />
-            <PrintRankingPanel title="أقل 10 فنادق (إيرادات)" valueLabel="صافي الإيراد" data={[...rows].filter((r) => num(r.net_revenue) > 0).sort((a,b) => num(a.net_revenue)-num(b.net_revenue)).slice(0,10)} valueFormatter={(v) => formatNumber(v, 2)} />
+            <PrintRankingPanel title="أعلى 10 فنادق (إيرادات)" valueLabel="إجمالي الإيرادات" valueKey="actual_revenue" data={currentRevenue} valueFormatter={(v) => formatNumber(v, 2)} />
+            <PrintRankingPanel title="أقل 10 فنادق (إيرادات)" valueLabel="إجمالي الإيرادات" valueKey="actual_revenue" data={bottomRevenue} valueFormatter={(v) => formatNumber(v, 2)} />
           </div>
         </div>
 
         <div className="monthly-print-section-block">
           <div className="monthly-print-section-line"><h3>أداء الفنادق — التقييمات</h3><span>متوسط التقييم</span></div>
           <div className="monthly-print-ranking-grid">
-            <PrintRankingPanel title="أعلى 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" data={currentRatings} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
-            <PrintRankingPanel title="أقل 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" data={[...currentRatings].sort((a,b) => num(a.average_rating)-num(b.average_rating))} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
+            <PrintRankingPanel title="أعلى 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" valueKey="average_rating" data={currentRatings} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
+            <PrintRankingPanel title="أقل 10 فنادق (التقييمات)" valueLabel="متوسط التقييم" valueKey="average_rating" data={bottomRatings} valueFormatter={(v) => `${formatNumber(v, 2)} /10`} />
           </div>
         </div>
 
@@ -377,8 +378,8 @@ function MonthlyPrintReport({
             <strong>{formatNumber(bookingBottom)}</strong>
           </div>
           <div>
-            <span>صافي الإيراد الحالي</span>
-            <strong>{formatNumber(totals.net_revenue, 2)}</strong>
+            <span>إجمالي الإيراد الحالي</span>
+            <strong>{formatNumber(totals.actual_revenue, 2)}</strong>
           </div>
         </div>
 
@@ -401,7 +402,7 @@ function MonthlyPrintReport({
         <div className="monthly-print-detail-panel">
           <div className="monthly-print-detail-heading">
             <strong>تفاصيل أداء جميع الفنادق</strong>
-            <span>الحجوزات • المدفوع • الكاش • السعر الإجمالي • العمولة • الضرائب • الصافي • التقييمات</span>
+            <span>الحجوزات • المدفوع • الكاش • السعر الإجمالي • التقييمات • متوسط التقييم</span>
           </div>
           <table className="monthly-print-detail-table">
             <thead>
@@ -411,9 +412,6 @@ function MonthlyPrintReport({
                 <th>مدفوع</th>
                 <th>كاش</th>
                 <th>السعر الإجمالي</th>
-                <th>العمولة</th>
-                <th>الضرائب</th>
-                <th>الصافي</th>
                 <th>التقييمات</th>
                 <th>متوسط التقييم</th>
               </tr>
@@ -426,9 +424,6 @@ function MonthlyPrintReport({
                   <td>{formatNumber(num(row.paid))}</td>
                   <td>{formatNumber(num(row.cash))}</td>
                   <td>{formatNumber(num(row.actual_revenue), 2)}</td>
-                  <td>{formatNumber(num(row.commission), 2)}</td>
-                  <td>{formatNumber(num(row.tax), 2)}</td>
-                  <td>{formatNumber(num(row.net_revenue), 2)}</td>
                   <td>{formatNumber(num(row.review_count))}</td>
                   <td>{num(row.average_rating).toFixed(2)}</td>
                 </tr>
@@ -520,44 +515,85 @@ export default function MonthlyReport() {
   const top10 = useMemo(
     () =>
       [...rows]
+        .filter((r) => num(r.bookings) > 0)
         .sort((a, b) => num(b.bookings) - num(a.bookings))
         .slice(0, 10),
     [rows],
   )
 
+  const topBookingHotelNames = useMemo(
+    () => new Set(top10.map((r) => String(r.hotel_name || ''))),
+    [top10],
+  )
+
   const bottom10 = useMemo(
     () =>
       [...rows]
+        .filter((r) => !topBookingHotelNames.has(String(r.hotel_name || '')))
         .sort((a, b) => num(a.bookings) - num(b.bookings))
         .slice(0, 10),
-    [rows],
+    [rows, topBookingHotelNames],
   )
 
   const currentRevenue = useMemo(
     () =>
       [...rows]
-        .filter((r) => num(r.net_revenue) > 0)
-        .sort((a, b) => num(b.net_revenue) - num(a.net_revenue))
+        .filter((r) => num(r.actual_revenue) > 0)
+        .sort((a, b) => num(b.actual_revenue) - num(a.actual_revenue))
         .slice(0, 10),
     [rows],
+  )
+
+  const currentRevenueHotelNames = useMemo(
+    () => new Set(currentRevenue.map((r) => String(r.hotel_name || ''))),
+    [currentRevenue],
+  )
+
+  const bottomRevenue = useMemo(
+    () =>
+      [...rows]
+        .filter((r) => !currentRevenueHotelNames.has(String(r.hotel_name || '')))
+        .sort((a, b) => num(a.actual_revenue) - num(b.actual_revenue))
+        .slice(0, 10),
+    [rows, currentRevenueHotelNames],
   )
 
   const previousRevenue = useMemo(
     () =>
       [...previousRows]
-        .filter((r) => num(r.net_revenue) > 0)
-        .sort((a, b) => num(b.net_revenue) - num(a.net_revenue))
+        .filter((r) => num(r.actual_revenue) > 0)
+        .sort((a, b) => num(b.actual_revenue) - num(a.actual_revenue))
         .slice(0, 10),
     [previousRows],
   )
 
-  const currentRatings = useMemo(
+  const ratedRows = useMemo(
     () =>
       [...rows]
-        .filter((r) => num(r.review_count) > 0)
+        .filter((r) => num(r.review_count) > 0),
+    [rows],
+  )
+
+  const currentRatings = useMemo(
+    () =>
+      [...ratedRows]
         .sort((a, b) => num(b.average_rating) - num(a.average_rating))
         .slice(0, 10),
-    [rows],
+    [ratedRows],
+  )
+
+  const currentRatingHotelNames = useMemo(
+    () => new Set(currentRatings.map((r) => String(r.hotel_name || ''))),
+    [currentRatings],
+  )
+
+  const bottomRatings = useMemo(
+    () =>
+      [...ratedRows]
+        .filter((r) => !currentRatingHotelNames.has(String(r.hotel_name || '')))
+        .sort((a, b) => num(a.average_rating) - num(b.average_rating))
+        .slice(0, 10),
+    [ratedRows, currentRatingHotelNames],
   )
 
   const previousRatings = useMemo(
@@ -687,30 +723,6 @@ export default function MonthlyReport() {
         />
 
         <StatCard
-          title="العمولة"
-          value={totals.commission}
-          icon={<Coins size={23} strokeWidth={2.2} />}
-          accentColor="green"
-          sparklineData={[1, 1, 2, 2, 2, 3, 3, 4]}
-        />
-
-        <StatCard
-          title="الضرائب"
-          value={totals.tax}
-          icon={<Receipt size={23} strokeWidth={2.2} />}
-          accentColor="red"
-          sparklineData={[1, 2, 1, 2, 1, 3, 2, 2]}
-        />
-
-        <StatCard
-          title="صافي الإيراد"
-          value={totals.net_revenue}
-          icon={<HotelIcon size={23} strokeWidth={2.2} />}
-          accentColor="purple"
-          sparklineData={[2, 2, 3, 3, 4, 4, 5, 5]}
-        />
-
-        <StatCard
           title="التقييمات"
           value={totals.reviews}
           icon={<Star size={23} strokeWidth={2.2} />}
@@ -745,9 +757,9 @@ export default function MonthlyReport() {
         </div>
 
         <div>
-          <span>صافي الإيراد</span>
+          <span>إجمالي الإيراد</span>
           <strong>
-            {totals.net_revenue.toLocaleString('en-US', {
+            {totals.actual_revenue.toLocaleString('en-US', {
               maximumFractionDigits: 2,
             })}
           </strong>
@@ -799,7 +811,7 @@ export default function MonthlyReport() {
 
       <section className="monthly-chart-section print-friendly">
         <div className="monthly-section-head">
-          <h3>أداء الفنادق — صافي الإيراد</h3>
+          <h3>أداء الفنادق — إجمالي الإيرادات</h3>
           <span>
             الحالي: {monthLabel(y, m)} — السابق:{' '}
             {monthLabel(previousPeriod.year, previousPeriod.month)}
@@ -808,22 +820,22 @@ export default function MonthlyReport() {
 
         <div className="monthly-chart-pair">
           <HorizontalBars
-            title={`صافي الإيراد — ${monthLabel(y, m)}`}
+            title={`إجمالي الإيرادات — ${monthLabel(y, m)}`}
             data={currentRevenue.map((r: any) => ({
               name: r.hotel_name,
-              value: num(r.net_revenue),
+              value: num(r.actual_revenue),
             }))}
             maxItems={10}
           />
 
           <HorizontalBars
-            title={`صافي الإيراد — ${monthLabel(
+            title={`إجمالي الإيرادات — ${monthLabel(
               previousPeriod.year,
               previousPeriod.month,
             )}`}
             data={previousRevenue.map((r: any) => ({
               name: r.hotel_name,
-              value: num(r.net_revenue),
+              value: num(r.actual_revenue),
             }))}
             maxItems={10}
           />
@@ -902,9 +914,9 @@ export default function MonthlyReport() {
           />
 
           <ComparisonDonut
-            title="صافي الإيراد — الحالي مقابل السابق"
-            current={totals.net_revenue}
-            previous={prevTotals.net_revenue}
+            title="إجمالي الإيراد — الحالي مقابل السابق"
+            current={totals.actual_revenue}
+            previous={prevTotals.actual_revenue}
             formatValue={(v) =>
               v.toLocaleString('en-US', {
                 maximumFractionDigits: 2,
@@ -941,9 +953,6 @@ export default function MonthlyReport() {
                 <th>مدفوع</th>
                 <th>كاش</th>
                 <th>السعر الإجمالي</th>
-                <th>العمولة</th>
-                <th>الضرائب</th>
-                <th>الصافي</th>
                 <th>التقييمات</th>
                 <th>متوسط التقييم</th>
               </tr>
@@ -958,9 +967,6 @@ export default function MonthlyReport() {
                     <td>{num(r.paid)}</td>
                     <td>{num(r.cash)}</td>
                     <td>{num(r.actual_revenue).toFixed(2)}</td>
-                    <td>{num(r.commission).toFixed(2)}</td>
-                    <td>{num(r.tax).toFixed(2)}</td>
-                    <td>{num(r.net_revenue).toFixed(2)}</td>
                     <td>{num(r.review_count)}</td>
                     <td>{num(r.average_rating).toFixed(2)}</td>
                   </tr>
@@ -986,8 +992,10 @@ export default function MonthlyReport() {
         top10={top10}
         bottom10={bottom10}
         currentRevenue={currentRevenue}
+        bottomRevenue={bottomRevenue}
         previousRevenue={previousRevenue}
         currentRatings={currentRatings}
+        bottomRatings={bottomRatings}
         previousRatings={previousRatings}
         rows={rows}
         bookingTop={bookingTop}
