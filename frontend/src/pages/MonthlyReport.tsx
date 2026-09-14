@@ -14,7 +14,7 @@ import {
 import { getHotels, getMonthly, Hotel } from '../api'
 import StatCard from '../components/StatCard'
 import PrintButton from '../components/PrintButton'
-import { ComparisonDonut, HorizontalBars, PlatformShareChart } from '../components/ReportCharts'
+import { ComparisonDonut, PlatformShareChart } from '../components/ReportCharts'
 
 function monthName(m: number) {
   return new Intl.DateTimeFormat('ar-EG', { month: 'long' }).format(new Date(2024, m - 1, 1))
@@ -151,6 +151,48 @@ function PrintRankingPanel({
               {direction === 'up' ? <ArrowUp size={10} strokeWidth={2.8} /> : <ArrowDown size={10} strokeWidth={2.8} />}
             </span>
             <strong>{item ? valueFormatter(num(item[valueKey])) : '—'}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ScreenRankingPanel({
+  title,
+  data,
+  valueKey,
+  direction,
+  valueFormatter = (value: number) => formatNumber(value),
+}: {
+  title: string
+  data: any[]
+  valueKey: 'bookings' | 'actual_revenue' | 'average_rating'
+  direction: 'up' | 'down'
+  valueFormatter?: (value: number) => string
+}) {
+  const items = [...data].slice(0, 10)
+  while (items.length < 10) items.push(null)
+
+  return (
+    <div className="monthly-screen-ranking-panel">
+      <div className="monthly-screen-ranking-head">
+        <strong>{title}</strong>
+      </div>
+      <div className="monthly-screen-ranking-list">
+        {items.map((item, index) => (
+          <div className="monthly-screen-ranking-row" key={`${title}-${index}`}>
+            <span className="monthly-screen-ranking-number">{index + 1}</span>
+            <span className="monthly-screen-ranking-name">{item?.hotel_name || '—'}</span>
+            <span
+              className={`monthly-screen-ranking-trend ${direction}`}
+              aria-label={direction === 'up' ? 'أعلى أداء' : 'أقل أداء'}
+            >
+              {direction === 'up' ? <ArrowUp size={14} strokeWidth={2.6} /> : <ArrowDown size={14} strokeWidth={2.6} />}
+            </span>
+            <strong className="monthly-screen-ranking-value">
+              {item ? valueFormatter(num(item[valueKey])) : '—'}
+            </strong>
           </div>
         ))}
       </div>
@@ -523,25 +565,35 @@ export default function MonthlyReport() {
     average_rating: num(d.previous?.totals?.average_rating),
   }
 
+  const hotelName = (row: any) => String(row?.hotel_name || '')
+  const byHotelName = (a: any, b: any) => hotelName(a).localeCompare(hotelName(b), 'en', { sensitivity: 'base' })
+
   const top10 = useMemo(
     () =>
       [...rows]
-        .filter((r) => num(r.bookings) > 0)
-        .sort((a, b) => num(b.bookings) - num(a.bookings))
+        .sort((a, b) =>
+          num(b.bookings) - num(a.bookings) ||
+          num(b.actual_revenue) - num(a.actual_revenue) ||
+          byHotelName(a, b),
+        )
         .slice(0, 10),
     [rows],
   )
 
   const topBookingHotelNames = useMemo(
-    () => new Set(top10.map((r) => String(r.hotel_name || ''))),
+    () => new Set(top10.map((r) => hotelName(r))),
     [top10],
   )
 
   const bottom10 = useMemo(
     () =>
       [...rows]
-        .filter((r) => !topBookingHotelNames.has(String(r.hotel_name || '')))
-        .sort((a, b) => num(a.bookings) - num(b.bookings))
+        .filter((r) => !topBookingHotelNames.has(hotelName(r)))
+        .sort((a, b) =>
+          num(a.bookings) - num(b.bookings) ||
+          num(a.actual_revenue) - num(b.actual_revenue) ||
+          byHotelName(a, b),
+        )
         .slice(0, 10),
     [rows, topBookingHotelNames],
   )
@@ -549,22 +601,29 @@ export default function MonthlyReport() {
   const currentRevenue = useMemo(
     () =>
       [...rows]
-        .filter((r) => num(r.actual_revenue) > 0)
-        .sort((a, b) => num(b.actual_revenue) - num(a.actual_revenue))
+        .sort((a, b) =>
+          num(b.actual_revenue) - num(a.actual_revenue) ||
+          num(b.bookings) - num(a.bookings) ||
+          byHotelName(a, b),
+        )
         .slice(0, 10),
     [rows],
   )
 
   const currentRevenueHotelNames = useMemo(
-    () => new Set(currentRevenue.map((r) => String(r.hotel_name || ''))),
+    () => new Set(currentRevenue.map((r) => hotelName(r))),
     [currentRevenue],
   )
 
   const bottomRevenue = useMemo(
     () =>
       [...rows]
-        .filter((r) => !currentRevenueHotelNames.has(String(r.hotel_name || '')))
-        .sort((a, b) => num(a.actual_revenue) - num(b.actual_revenue))
+        .filter((r) => !currentRevenueHotelNames.has(hotelName(r)))
+        .sort((a, b) =>
+          num(a.actual_revenue) - num(b.actual_revenue) ||
+          num(a.bookings) - num(b.bookings) ||
+          byHotelName(a, b),
+        )
         .slice(0, 10),
     [rows, currentRevenueHotelNames],
   )
@@ -573,7 +632,7 @@ export default function MonthlyReport() {
     () =>
       [...previousRows]
         .filter((r) => num(r.actual_revenue) > 0)
-        .sort((a, b) => num(b.actual_revenue) - num(a.actual_revenue))
+        .sort((a, b) => num(b.actual_revenue) - num(a.actual_revenue) || num(b.bookings) - num(a.bookings) || byHotelName(a, b))
         .slice(0, 10),
     [previousRows],
   )
@@ -588,7 +647,7 @@ export default function MonthlyReport() {
   const currentRatings = useMemo(
     () =>
       [...ratedRows]
-        .sort((a, b) => num(b.average_rating) - num(a.average_rating))
+        .sort((a, b) => num(b.average_rating) - num(a.average_rating) || num(b.review_count) - num(a.review_count) || byHotelName(a, b))
         .slice(0, 10),
     [ratedRows],
   )
@@ -602,7 +661,7 @@ export default function MonthlyReport() {
     () =>
       [...ratedRows]
         .filter((r) => !currentRatingHotelNames.has(String(r.hotel_name || '')))
-        .sort((a, b) => num(a.average_rating) - num(b.average_rating))
+        .sort((a, b) => num(a.average_rating) - num(b.average_rating) || num(a.review_count) - num(b.review_count) || byHotelName(a, b))
         .slice(0, 10),
     [ratedRows, currentRatingHotelNames],
   )
@@ -611,7 +670,7 @@ export default function MonthlyReport() {
     () =>
       [...previousRows]
         .filter((r) => num(r.review_count) > 0)
-        .sort((a, b) => num(b.average_rating) - num(a.average_rating))
+        .sort((a, b) => num(b.average_rating) - num(a.average_rating) || num(b.review_count) - num(a.review_count) || byHotelName(a, b))
         .slice(0, 10),
     [previousRows],
   )
@@ -796,91 +855,59 @@ export default function MonthlyReport() {
       <section className="monthly-chart-section print-friendly">
         <div className="monthly-section-head">
           <h3>أداء الفنادق — الحجوزات</h3>
-          <span>مقارنة أعلى 10 وأقل 10 فنادق</span>
+          <span>نفس ترتيب الطباعة — أعلى 10 وأقل 10 فنادق</span>
         </div>
 
-        <div className="monthly-chart-pair">
-          <HorizontalBars
-            title="أعلى 10 فنادق — الحجوزات"
-            data={top10.map((r: any) => ({
-              name: r.hotel_name,
-              value: num(r.bookings),
-            }))}
-            maxItems={10}
-          />
-
-          <HorizontalBars
-            title="أقل 10 فنادق — الحجوزات"
-            data={bottom10.map((r: any) => ({
-              name: r.hotel_name,
-              value: num(r.bookings),
-            }))}
-            maxItems={10}
-          />
+        <div className="monthly-screen-ranking-grid">
+          <ScreenRankingPanel title="أعلى 10 فنادق — الحجوزات" data={top10} valueKey="bookings" direction="up" />
+          <ScreenRankingPanel title="أقل 10 فنادق — الحجوزات" data={bottom10} valueKey="bookings" direction="down" />
         </div>
       </section>
 
       <section className="monthly-chart-section print-friendly">
         <div className="monthly-section-head">
           <h3>أداء الفنادق — إجمالي الإيرادات</h3>
-          <span>
-            الحالي: {monthLabel(y, m)} — السابق:{' '}
-            {monthLabel(previousPeriod.year, previousPeriod.month)}
-          </span>
+          <span>{monthLabel(y, m)} — أعلى 10 وأقل 10 فنادق</span>
         </div>
 
-        <div className="monthly-chart-pair">
-          <HorizontalBars
-            title={`إجمالي الإيرادات — ${monthLabel(y, m)}`}
-            data={currentRevenue.map((r: any) => ({
-              name: r.hotel_name,
-              value: num(r.actual_revenue),
-            }))}
-            maxItems={10}
+        <div className="monthly-screen-ranking-grid">
+          <ScreenRankingPanel
+            title="أعلى 10 فنادق — الإيرادات"
+            data={currentRevenue}
+            valueKey="actual_revenue"
+            direction="up"
+            valueFormatter={(v) => formatNumber(v, 2)}
           />
-
-          <HorizontalBars
-            title={`إجمالي الإيرادات — ${monthLabel(
-              previousPeriod.year,
-              previousPeriod.month,
-            )}`}
-            data={previousRevenue.map((r: any) => ({
-              name: r.hotel_name,
-              value: num(r.actual_revenue),
-            }))}
-            maxItems={10}
+          <ScreenRankingPanel
+            title="أقل 10 فنادق — الإيرادات"
+            data={bottomRevenue}
+            valueKey="actual_revenue"
+            direction="down"
+            valueFormatter={(v) => formatNumber(v, 2)}
           />
         </div>
       </section>
 
       <section className="monthly-chart-section print-friendly">
         <div className="monthly-section-head">
-          <h3>مؤشرات التقييم</h3>
-          <span>متوسط التقييم حسب الفندق — الحالي والسابق</span>
+          <h3>أداء الفنادق — التقييمات</h3>
+          <span>متوسط التقييم — أعلى 10 وأقل 10 فنادق</span>
         </div>
 
-        <div className="monthly-chart-pair">
-          <HorizontalBars
-            title={`مؤشرات التقييم — ${monthLabel(y, m)}`}
-            data={currentRatings.map((r: any) => ({
-              name: r.hotel_name,
-              value: num(r.average_rating),
-            }))}
-            maxItems={10}
-            valueSuffix=" /10"
+        <div className="monthly-screen-ranking-grid">
+          <ScreenRankingPanel
+            title="أعلى 10 فنادق — التقييمات"
+            data={currentRatings}
+            valueKey="average_rating"
+            direction="up"
+            valueFormatter={(v) => `${formatNumber(v, 2)} /10`}
           />
-
-          <HorizontalBars
-            title={`مؤشرات التقييم — ${monthLabel(
-              previousPeriod.year,
-              previousPeriod.month,
-            )}`}
-            data={previousRatings.map((r: any) => ({
-              name: r.hotel_name,
-              value: num(r.average_rating),
-            }))}
-            maxItems={10}
-            valueSuffix=" /10"
+          <ScreenRankingPanel
+            title="أقل 10 فنادق — التقييمات"
+            data={bottomRatings}
+            valueKey="average_rating"
+            direction="down"
+            valueFormatter={(v) => `${formatNumber(v, 2)} /10`}
           />
         </div>
       </section>
