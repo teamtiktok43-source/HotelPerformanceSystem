@@ -678,6 +678,22 @@ export default function MonthlyReport() {
   const bookingTop = top10.reduce((s, r) => s + num(r.bookings), 0)
   const bookingBottom = bottom10.reduce((s, r) => s + num(r.bookings), 0)
 
+  const detailedRows = useMemo(
+    () =>
+      [...rows].sort((a, b) => {
+        const revenueDiff = num(b.actual_revenue) - num(a.actual_revenue)
+        if (revenueDiff !== 0) return revenueDiff
+
+        const bookingsDiff = num(b.bookings) - num(a.bookings)
+        if (bookingsDiff !== 0) return bookingsDiff
+
+        return String(a.hotel_name || '').localeCompare(String(b.hotel_name || ''), 'en', {
+          sensitivity: 'base',
+        })
+      }),
+    [rows],
+  )
+
   const previousPeriod = d.previous
     ? {
         year: num(d.previous.year) || previousMonth(y, m).year,
@@ -997,8 +1013,8 @@ export default function MonthlyReport() {
             </thead>
 
             <tbody>
-              {rows.length ? (
-                rows.map((r: any) => (
+              {detailedRows.length ? (
+                detailedRows.map((r: any) => (
                   <tr key={r.hotel_name}>
                     <td>{r.hotel_name}</td>
                     <td>{num(r.bookings)}</td>
@@ -1035,7 +1051,7 @@ export default function MonthlyReport() {
         currentRatings={currentRatings}
         bottomRatings={bottomRatings}
         previousRatings={previousRatings}
-        rows={rows}
+        rows={detailedRows}
         bookingTop={bookingTop}
         bookingBottom={bookingBottom}
       />
