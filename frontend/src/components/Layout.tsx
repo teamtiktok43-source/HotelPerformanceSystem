@@ -2,10 +2,12 @@ import { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { User } from '../api'
 import NotificationsBell from './NotificationsBell'
+import ChatDock from './ChatDock'
 
 const items: [string, string][] = [
   ['/', 'الرئيسية'],
   ['/smart-entry', 'الإدخال اليومي الذكي'],
+  ['/chat', 'المحادثات'],
   ['/bookings', 'الحجوزات اليومية'],
   ['/revenue', 'الإيرادات اليومية'],
   ['/platforms', 'المنصات'],
@@ -76,6 +78,8 @@ export default function Layout({
         </header>
 
         {children}
+
+        <ChatDock user={user} />
 
         <div className="print-footer" aria-hidden="true">
           Created by Mostafa Amer

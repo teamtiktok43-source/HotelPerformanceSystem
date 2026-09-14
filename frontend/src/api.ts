@@ -83,6 +83,24 @@ export type SmartEntryResult = {
   review_ids: number[]
 }
 
+export type ChatMessage = {
+  id: number
+  sender_id: number
+  sender_name: string
+  recipient_id: number
+  recipient_name: string
+  content: string
+  is_read: boolean
+  read_at?: string | null
+  created_at: string
+}
+
+export type ChatConversation = {
+  user: User
+  last_message: ChatMessage
+  unread_count: number
+}
+
 export type LicenseInfo = { active: boolean; activated_at: string | null; expires_at: string | null; remaining_days: number; remaining_seconds: number; owner_user_id: number }
 
 export type Notification = {
@@ -93,6 +111,8 @@ export type Notification = {
   message: string
   review_id?: number | null
   comment_id?: number | null
+  chat_message_id?: number | null
+  chat_sender_id?: number | null
   is_read: boolean
   read_at?: string | null
   created_at: string
@@ -166,6 +186,16 @@ export const getNotifications = (unreadOnly = false) => apiFetch<Notification[]>
 export const getUnreadNotificationCount = () => apiFetch<{ count: number }>('/api/notifications/unread-count')
 export const markNotificationRead = (id: number) => apiFetch<Notification>(`/api/notifications/${id}/read`, { method: 'PATCH' })
 export const markAllNotificationsRead = () => apiFetch<{ updated: number }>('/api/notifications/read-all', { method: 'POST' })
+
+export const getChatUsers = () => apiFetch<User[]>('/api/chat/users')
+export const getChatConversations = () => apiFetch<ChatConversation[]>('/api/chat/conversations')
+export const getChatMessages = (userId: number, beforeId?: number) =>
+  apiFetch<ChatMessage[]>(`/api/chat/messages/${userId}${beforeId ? `?before_id=${beforeId}` : ''}`)
+export const sendChatMessage = (recipientId: number, content: string) =>
+  apiFetch<ChatMessage>('/api/chat/messages', { method: 'POST', body: JSON.stringify({ recipient_id: recipientId, content }) })
+export const markChatConversationRead = (userId: number) =>
+  apiFetch<{ updated: number }>(`/api/chat/conversations/${userId}/read`, { method: 'POST' })
+export const getUnreadChatCount = () => apiFetch<{ count: number }>('/api/chat/unread-count')
 
 export const saveAuth = (u: User, t: string) => { localStorage.setItem('hps_token', t); localStorage.setItem('hps_user', JSON.stringify(u)) }
 export const getAuthUser = (): User | null => { try { return JSON.parse(localStorage.getItem('hps_user') || 'null') } catch { return null } }

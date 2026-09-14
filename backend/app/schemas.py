@@ -122,6 +122,11 @@ class PlatformUpdate(BaseModel):
     active: bool | None = None
 
 
+class ChatMessageCreate(BaseModel):
+    recipient_id: int
+    content: str = Field(min_length=1, max_length=5000)
+
+
 class SmartEntryReview(BaseModel):
     rating: Decimal = Field(ge=0, le=10)
     comment: str = Field(min_length=1)

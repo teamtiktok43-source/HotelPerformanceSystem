@@ -6,9 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, or_, text, delete
 from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
-from .models import Booking, Hotel, Platform, Revenue, Review, ReviewComment, Notification, User, SystemLicense, ActivationKey
+from .models import Booking, Hotel, Platform, Revenue, Review, ReviewComment, ChatMessage, Notification, User, SystemLicense, ActivationKey
 from .schemas import (BookingCreate, BookingUpdate, EmployeeCreate, EmployeeUpdate, HotelCreate, HotelUpdate,
-                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, ReviewCommentCreate, PlatformCreate, PlatformUpdate, LicenseActivateRequest, SmartDailyEntryCreate)
+                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, ReviewCommentCreate, PlatformCreate, PlatformUpdate, LicenseActivateRequest, SmartDailyEntryCreate, ChatMessageCreate)
 from .auth import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from .seed import seed_defaults
 from .websocket import manager
@@ -26,6 +26,7 @@ def ensure_schema_updates():
         revenue_columns = {c["name"] for c in inspector.get_columns("revenues")}
         booking_columns = {c["name"] for c in inspector.get_columns("bookings")}
         review_columns = {c["name"] for c in inspector.get_columns("reviews")}
+        notification_columns = {c["name"] for c in inspector.get_columns("notifications")}
     except Exception:
         return
 
@@ -60,8 +61,15 @@ def ensure_schema_updates():
         add_column("reviews", "rejection_reason", "rejection_reason TEXT NOT NULL DEFAULT ''")
     if "updated_at" not in review_columns:
         add_column("reviews", "updated_at", f"updated_at {column_type('updated_at')}")
+    if "chat_message_id" not in notification_columns:
+        add_column("notifications", "chat_message_id", "chat_message_id INTEGER")
 
     if not statements:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_chat_message_id ON notifications (chat_message_id)"))
+        except Exception:
+            pass
         return
 
     # Run migrations independently so one invalid legacy DDL statement cannot
@@ -73,6 +81,12 @@ def ensure_schema_updates():
         except Exception:
             # Keep startup resilient; the failed column can be retried next run.
             pass
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_chat_message_id ON notifications (chat_message_id)"))
+    except Exception:
+        pass
 
     # Map existing revenue platform text to managed platform IDs where possible.
     try:
@@ -147,10 +161,25 @@ def comment_to_dict(c: ReviewComment):
         "created_at": c.created_at.isoformat(), "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }
 
+def chat_message_to_dict(m: ChatMessage):
+    return {
+        "id": m.id,
+        "sender_id": m.sender_id,
+        "sender_name": m.sender.display_name if m.sender else "",
+        "recipient_id": m.recipient_id,
+        "recipient_name": m.recipient.display_name if m.recipient else "",
+        "content": m.content,
+        "is_read": bool(m.is_read),
+        "read_at": m.read_at.isoformat() if m.read_at else None,
+        "created_at": m.created_at.isoformat(),
+    }
+
 def notification_to_dict(n: Notification):
+    chat_sender_id = n.chat_message.sender_id if n.chat_message else None
     return {
         "id": n.id, "recipient_id": n.recipient_id, "type": n.type, "title": n.title,
         "message": n.message, "review_id": n.review_id, "comment_id": n.comment_id,
+        "chat_message_id": n.chat_message_id, "chat_sender_id": chat_sender_id,
         "is_read": bool(n.is_read), "read_at": n.read_at.isoformat() if n.read_at else None,
         "created_at": n.created_at.isoformat(),
     }
@@ -166,10 +195,13 @@ def _review_recipients_for_employee(review: Review, db: Session):
         return [manager_user] if manager_user and manager_user.active else []
     return db.query(User).filter(User.active.is_(True), User.role.in_(("manager", "admin"))).all()
 
-def _add_notification(db: Session, recipient_id: int, ntype: str, title: str, message: str, review_id: int | None = None, comment_id: int | None = None):
+def _add_notification(
+    db: Session, recipient_id: int, ntype: str, title: str, message: str,
+    review_id: int | None = None, comment_id: int | None = None, chat_message_id: int | None = None,
+):
     n = Notification(
         recipient_id=recipient_id, type=ntype, title=title, message=message,
-        review_id=review_id, comment_id=comment_id, is_read=False
+        review_id=review_id, comment_id=comment_id, chat_message_id=chat_message_id, is_read=False
     )
     db.add(n)
     return n
@@ -362,8 +394,9 @@ def delete_employee(employee_id: int, db: Session = Depends(get_db), user: User 
     revenue_count = db.query(Revenue).filter(Revenue.employee_id == employee_id).count()
     review_count = db.query(Review).filter(Review.employee_id == employee_id).count()
     manager_count = db.query(Review).filter(Review.manager_id == employee_id).count()
-    if booking_count or revenue_count or review_count or manager_count:
-        raise HTTPException(400, "Cannot delete employee with existing records. Disable the account instead.")
+    chat_count = db.query(ChatMessage).filter(or_(ChatMessage.sender_id == employee_id, ChatMessage.recipient_id == employee_id)).count()
+    if booking_count or revenue_count or review_count or manager_count or chat_count:
+        raise HTTPException(400, "Cannot delete employee with existing records or chat history. Disable the account instead.")
 
     db.delete(u)
     db.commit()
@@ -897,6 +930,135 @@ def mark_all_notifications_read(db: Session = Depends(get_db), user: User = Depe
              .update({Notification.is_read: True, Notification.read_at: now}, synchronize_session=False))
     db.commit()
     return {"updated": count}
+
+@app.get("/api/chat/users")
+def chat_users(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    users = (db.query(User)
+             .filter(User.active.is_(True), User.id != user.id)
+             .order_by(User.display_name.asc(), User.id.asc()).all())
+    return [user_to_dict(row) for row in users]
+
+
+@app.get("/api/chat/conversations")
+def chat_conversations(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    messages = (db.query(ChatMessage)
+                .filter(or_(ChatMessage.sender_id == user.id, ChatMessage.recipient_id == user.id))
+                .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc()).all())
+    unread_rows = (db.query(ChatMessage.sender_id, func.count(ChatMessage.id))
+                   .filter(ChatMessage.recipient_id == user.id, ChatMessage.is_read.is_(False))
+                   .group_by(ChatMessage.sender_id).all())
+    unread_by_user = {sender_id: int(count) for sender_id, count in unread_rows}
+
+    result = []
+    seen: set[int] = set()
+    for message in messages:
+        other_id = message.recipient_id if message.sender_id == user.id else message.sender_id
+        if other_id in seen:
+            continue
+        seen.add(other_id)
+        other = message.recipient if message.sender_id == user.id else message.sender
+        if not other:
+            continue
+        result.append({
+            "user": user_to_dict(other),
+            "last_message": chat_message_to_dict(message),
+            "unread_count": unread_by_user.get(other_id, 0),
+        })
+    return result
+
+
+@app.get("/api/chat/messages/{other_user_id}")
+def chat_messages(
+    other_user_id: int,
+    limit: int = Query(default=100, ge=1, le=200),
+    before_id: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    other = db.get(User, other_user_id)
+    if not other:
+        raise HTTPException(404, "User not found")
+    q = db.query(ChatMessage).filter(or_(
+        (ChatMessage.sender_id == user.id) & (ChatMessage.recipient_id == other_user_id),
+        (ChatMessage.sender_id == other_user_id) & (ChatMessage.recipient_id == user.id),
+    ))
+    if before_id is not None:
+        q = q.filter(ChatMessage.id < before_id)
+    rows = q.order_by(ChatMessage.id.desc()).limit(limit).all()
+    rows.reverse()
+    return [chat_message_to_dict(row) for row in rows]
+
+
+@app.post("/api/chat/messages", status_code=201)
+async def create_chat_message(
+    payload: ChatMessageCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if payload.recipient_id == user.id:
+        raise HTTPException(400, "You cannot send a message to yourself")
+    recipient = db.get(User, payload.recipient_id)
+    if not recipient or not recipient.active:
+        raise HTTPException(400, "Recipient is not available")
+    content = payload.content.strip()
+    if not content:
+        raise HTTPException(400, "Message cannot be empty")
+
+    message = ChatMessage(sender_id=user.id, recipient_id=recipient.id, content=content, is_read=False)
+    db.add(message)
+    db.flush()
+    preview = content if len(content) <= 140 else content[:137] + "..."
+    _add_notification(
+        db, recipient.id, "CHAT_MESSAGE", f"رسالة جديدة من {user.display_name}", preview,
+        chat_message_id=message.id,
+    )
+    db.commit()
+    db.refresh(message)
+
+    event = {"type": "chat.message.created", "message_id": message.id, "sender_id": user.id, "recipient_id": recipient.id}
+    await manager.send_to_user(recipient.id, event)
+    await manager.send_to_user(user.id, event)
+    await manager.send_to_user(recipient.id, {"type": "notification.created", "chat_message_id": message.id, "sender_id": user.id})
+    return chat_message_to_dict(message)
+
+
+@app.post("/api/chat/conversations/{other_user_id}/read")
+async def mark_chat_conversation_read(
+    other_user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    now = datetime.utcnow()
+    unread_messages = (db.query(ChatMessage)
+                       .filter(ChatMessage.sender_id == other_user_id,
+                               ChatMessage.recipient_id == user.id,
+                               ChatMessage.is_read.is_(False)).all())
+    if not unread_messages:
+        return {"updated": 0}
+
+    message_ids = [message.id for message in unread_messages]
+    for message in unread_messages:
+        message.is_read = True
+        message.read_at = now
+    (db.query(Notification)
+       .filter(Notification.recipient_id == user.id,
+               Notification.chat_message_id.in_(message_ids),
+               Notification.is_read.is_(False))
+       .update({Notification.is_read: True, Notification.read_at: now}, synchronize_session=False))
+    db.commit()
+
+    event = {"type": "chat.messages.read", "reader_id": user.id, "other_user_id": other_user_id, "count": len(message_ids)}
+    await manager.send_to_user(other_user_id, event)
+    await manager.send_to_user(user.id, event)
+    return {"updated": len(message_ids)}
+
+
+@app.get("/api/chat/unread-count")
+def unread_chat_count(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    count = (db.query(ChatMessage)
+             .filter(ChatMessage.recipient_id == user.id, ChatMessage.is_read.is_(False)).count())
+    return {"count": count}
+
 
 @app.get("/api/ratings")
 def ratings(year: int | None = Query(default=None, ge=2000, le=2100), month: int | None = Query(default=None, ge=1, le=12), db: Session = Depends(get_db), user: User = Depends(get_current_user)):

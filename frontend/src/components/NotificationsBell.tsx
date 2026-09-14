@@ -15,6 +15,7 @@ function iconFor(type: string) {
   if (type === 'REVIEW_REJECTED') return <ThumbsDown size={17} />
   if (type === 'REVIEW_COMMENT_REPLY') return <MessageCircle size={17} />
   if (type === 'REVIEW_COMMENT_ADDED') return <MessageCircle size={17} />
+  if (type === 'CHAT_MESSAGE') return <MessageCircle size={17} />
   return <RotateCcw size={17} />
 }
 
@@ -54,7 +55,9 @@ export default function NotificationsBell() {
       }
     } finally {
       setOpen(false)
-      if (n.review_id) {
+      if (n.type === 'CHAT_MESSAGE' && n.chat_sender_id) {
+        navigate(`/chat?user=${n.chat_sender_id}`)
+      } else if (n.review_id) {
         navigate(`/reviews/${n.review_id}${n.comment_id ? `?comment=${n.comment_id}` : ''}`)
       }
     }

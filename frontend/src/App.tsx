@@ -15,6 +15,7 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import DailyBookings from './pages/DailyBookings';
 import SmartDailyEntry from './pages/SmartDailyEntry';
+import Chat from './pages/Chat';
 import DailyRevenue from './pages/DailyRevenue';
 import Reviews from './pages/Reviews';
 import ReviewDetails from './pages/ReviewDetails';
@@ -94,6 +95,8 @@ export default function App() {
         {user.id === 1 && <Route path="/license" element={<License />} />}
 
         <Route path="/smart-entry" element={<SmartDailyEntry user={user} />} />
+
+        <Route path="/chat" element={<Chat user={user} />} />
 
         <Route path="/bookings" element={<DailyBookings />} />
 

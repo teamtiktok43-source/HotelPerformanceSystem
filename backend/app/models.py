@@ -135,6 +135,20 @@ class ReviewComment(Base):
     replies: Mapped[list["ReviewComment"]] = relationship(back_populates="parent", cascade="all")
 
 
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sender_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    sender: Mapped["User"] = relationship(foreign_keys=[sender_id])
+    recipient: Mapped["User"] = relationship(foreign_keys=[recipient_id])
+
+
 class Notification(Base):
     __tablename__ = "notifications"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -144,13 +158,17 @@ class Notification(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     review_id: Mapped[int | None] = mapped_column(ForeignKey("reviews.id", ondelete="CASCADE"), nullable=True, index=True)
     comment_id: Mapped[int | None] = mapped_column(ForeignKey("review_comments.id", ondelete="CASCADE"), nullable=True, index=True)
+    chat_message_id: Mapped[int | None] = mapped_column(ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=True, index=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     recipient: Mapped["User"] = relationship(foreign_keys=[recipient_id])
     review: Mapped["Review | None"] = relationship(foreign_keys=[review_id])
     comment: Mapped["ReviewComment | None"] = relationship(foreign_keys=[comment_id])
+    chat_message: Mapped["ChatMessage | None"] = relationship(foreign_keys=[chat_message_id])
 
 
 Index("ix_review_comments_review_created", ReviewComment.review_id, ReviewComment.created_at)
+Index("ix_chat_messages_pair_created", ChatMessage.sender_id, ChatMessage.recipient_id, ChatMessage.created_at)
+Index("ix_chat_messages_recipient_read_created", ChatMessage.recipient_id, ChatMessage.is_read, ChatMessage.created_at)
 Index("ix_notifications_recipient_read_created", Notification.recipient_id, Notification.is_read, Notification.created_at)
