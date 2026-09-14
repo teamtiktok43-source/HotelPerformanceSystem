@@ -14,6 +14,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import DailyBookings from './pages/DailyBookings';
+import SmartDailyEntry from './pages/SmartDailyEntry';
 import DailyRevenue from './pages/DailyRevenue';
 import Reviews from './pages/Reviews';
 import ReviewDetails from './pages/ReviewDetails';
@@ -91,6 +92,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         {user.id === 1 && <Route path="/license" element={<License />} />}
+
+        <Route path="/smart-entry" element={<SmartDailyEntry user={user} />} />
 
         <Route path="/bookings" element={<DailyBookings />} />
 

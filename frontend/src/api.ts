@@ -46,6 +46,43 @@ export type Review = {
   unread_comment_count?: number
   comments?: ReviewComment[]
 }
+export type SmartEntryReviewInput = {
+  rating: number
+  comment: string
+  sentiment: 'Positive' | 'Negative' | 'Neutral'
+  proposed_action: string
+}
+export type SmartEntryItemInput = {
+  booking_number: string
+  payment_status: 'Paid' | 'Cash'
+  platform_id: number
+  actual_price: number
+  commissionable_amount?: number
+  review?: SmartEntryReviewInput | null
+}
+export type SmartEntryPayload = {
+  hotel_id: number
+  entry_date: string
+  employee_id?: number
+  items: SmartEntryItemInput[]
+}
+export type SmartEntryResult = {
+  message: string
+  hotel_id: number
+  entry_date: string
+  reservations: number
+  paid_bookings: number
+  cash_bookings: number
+  booking_records: number
+  revenue_records: number
+  review_records: number
+  total_actual_price: number
+  total_net_revenue: number
+  booking_ids: number[]
+  revenue_ids: number[]
+  review_ids: number[]
+}
+
 export type LicenseInfo = { active: boolean; activated_at: string | null; expires_at: string | null; remaining_days: number; remaining_seconds: number; owner_user_id: number }
 
 export type Notification = {
@@ -98,6 +135,9 @@ export const getReviews = (params = '') => apiFetch<Review[]>(`/api/reviews?${pa
 export const getReviewDetail = (id: number) => apiFetch<Review>(`/api/reviews/${id}`)
 export const getRatings = (year?: number, month?: number) => apiFetch<any[]>(`/api/ratings${year && month ? `?year=${year}&month=${month}` : ''}`)
 export const getMonthly = (y: number, m: number, hotelId?: number) => apiFetch<any>(`/api/monthly-report?year=${y}&month=${m}${hotelId ? `&hotel_id=${hotelId}` : ''}`)
+export const createSmartEntry = (body: SmartEntryPayload) =>
+  apiFetch<SmartEntryResult>('/api/smart-entry', { method: 'POST', body: JSON.stringify(body) })
+
 export const createBooking = (b: any) => apiFetch<any>('/api/bookings', { method: 'POST', body: JSON.stringify(b) })
 export const createRevenue = (b: any) => apiFetch<any>('/api/revenue', { method: 'POST', body: JSON.stringify(b) })
 export const createReview = (b: any) => apiFetch<Review>('/api/reviews', { method: 'POST', body: JSON.stringify(b) })

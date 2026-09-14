@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
 
 
 class LoginRequest(BaseModel):
@@ -119,6 +120,29 @@ class PlatformCreate(BaseModel):
 class PlatformUpdate(BaseModel):
     name: str | None = None
     active: bool | None = None
+
+
+class SmartEntryReview(BaseModel):
+    rating: Decimal = Field(ge=0, le=10)
+    comment: str = Field(min_length=1)
+    sentiment: Literal["Positive", "Negative", "Neutral"] = "Positive"
+    proposed_action: str = ""
+
+
+class SmartEntryItem(BaseModel):
+    booking_number: str = Field(min_length=1, max_length=120)
+    payment_status: Literal["Paid", "Cash"]
+    platform_id: int
+    actual_price: Decimal = Field(ge=0)
+    commissionable_amount: Decimal | None = Field(default=None, ge=0)
+    review: SmartEntryReview | None = None
+
+
+class SmartDailyEntryCreate(BaseModel):
+    hotel_id: int
+    entry_date: date
+    employee_id: int | None = None
+    items: list[SmartEntryItem] = Field(min_length=1, max_length=200)
 
 
 class ModelConfig(BaseModel):

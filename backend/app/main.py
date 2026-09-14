@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
 from .models import Booking, Hotel, Platform, Revenue, Review, ReviewComment, Notification, User, SystemLicense, ActivationKey
 from .schemas import (BookingCreate, BookingUpdate, EmployeeCreate, EmployeeUpdate, HotelCreate, HotelUpdate,
-                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, ReviewCommentCreate, PlatformCreate, PlatformUpdate, LicenseActivateRequest)
+                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, ReviewCommentCreate, PlatformCreate, PlatformUpdate, LicenseActivateRequest, SmartDailyEntryCreate)
 from .auth import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from .seed import seed_defaults
 from .websocket import manager
@@ -464,6 +464,165 @@ async def create_revenue(payload: RevenueCreate, db: Session = Depends(get_db), 
     db.add(r); db.commit(); db.refresh(r)
     await manager.broadcast({"type": "revenue.created", "id": r.id})
     return revenue_to_dict(r)
+
+
+@app.post("/api/smart-entry", status_code=201)
+async def create_smart_daily_entry(
+    payload: SmartDailyEntryCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Atomically distribute one daily batch into bookings, revenues and optional reviews."""
+    hotel = db.get(Hotel, payload.hotel_id)
+    if not hotel or not hotel.active:
+        raise HTTPException(400, "Invalid hotel")
+
+    if user.role not in ("admin", "manager") and payload.employee_id not in (None, user.id):
+        raise HTTPException(403, "Employees can only create entries for themselves")
+    employee_id = payload.employee_id or user.id
+    employee = db.get(User, employee_id)
+    if not employee or not employee.active:
+        raise HTTPException(400, "Invalid employee")
+
+    cleaned_numbers = [item.booking_number.strip() for item in payload.items]
+    if any(not number for number in cleaned_numbers):
+        raise HTTPException(400, "Booking number is required")
+    normalized_numbers = [number.casefold() for number in cleaned_numbers]
+    if len(set(normalized_numbers)) != len(normalized_numbers):
+        raise HTTPException(400, "Duplicate booking numbers in the same batch")
+
+    platform_ids = {item.platform_id for item in payload.items}
+    platforms = db.query(Platform).filter(Platform.id.in_(platform_ids)).all() if platform_ids else []
+    platform_map = {p.id: p for p in platforms if p.active}
+    if len(platform_map) != len(platform_ids):
+        raise HTTPException(400, "Invalid or inactive platform")
+
+    # A smart entry represents a fresh reservation. Protect revenue data from accidental duplicates.
+    existing_revenue = (
+        db.query(Revenue.booking_number)
+        .filter(func.lower(Revenue.booking_number).in_([number.lower() for number in cleaned_numbers]))
+        .first()
+    )
+    if existing_revenue:
+        raise HTTPException(409, f"Booking number already exists in revenue: {existing_revenue[0]}")
+
+    review_numbers = [
+        cleaned_numbers[index]
+        for index, item in enumerate(payload.items)
+        if item.review is not None
+    ]
+    if review_numbers:
+        existing_review = (
+            db.query(Review.booking_number)
+            .filter(func.lower(Review.booking_number).in_([number.lower() for number in review_numbers]))
+            .first()
+        )
+        if existing_review:
+            raise HTTPException(409, f"Booking number already has a review: {existing_review[0]}")
+
+    rate = Decimal(hotel.commission_rate or 0)
+    tax_rate = Decimal(hotel.tax_rate or 0)
+    grouped: dict[int, dict[str, int]] = {}
+    booking_rows: list[Booking] = []
+    revenue_rows: list[Revenue] = []
+    review_rows: list[Review] = []
+    total_actual = Decimal("0")
+    total_net = Decimal("0")
+
+    try:
+        for index, item in enumerate(payload.items):
+            platform = platform_map[item.platform_id]
+            booking_number = cleaned_numbers[index]
+            counts = grouped.setdefault(item.platform_id, {"paid": 0, "cash": 0})
+            if item.payment_status == "Paid":
+                counts["paid"] += 1
+            else:
+                counts["cash"] += 1
+
+            actual_price = Decimal(item.actual_price or 0)
+            commissionable = Decimal(item.commissionable_amount if item.commissionable_amount is not None else item.actual_price or 0)
+            commission = (commissionable * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            tax = (actual_price * tax_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            net = (actual_price - commission - tax).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            total_actual += actual_price
+            total_net += net
+
+            revenue_rows.append(Revenue(
+                booking_number=booking_number,
+                hotel_id=payload.hotel_id,
+                platform=platform.name,
+                platform_id=platform.id,
+                revenue_date=payload.entry_date,
+                actual_price=actual_price,
+                commissionable_amount=commissionable,
+                commission_rate=rate,
+                commission=commission,
+                tax_rate=tax_rate,
+                tax=tax,
+                net_revenue=net,
+                employee_id=employee_id,
+            ))
+
+            if item.review is not None:
+                review_rows.append(Review(
+                    booking_number=booking_number,
+                    hotel_id=payload.hotel_id,
+                    platform_id=platform.id,
+                    rating=item.review.rating,
+                    comment=item.review.comment.strip(),
+                    sentiment=item.review.sentiment,
+                    review_date=payload.entry_date,
+                    proposed_action=item.review.proposed_action.strip(),
+                    employee_id=employee_id,
+                    status="Pending",
+                    rejection_reason="",
+                ))
+
+        for platform_id, counts in grouped.items():
+            total = counts["paid"] + counts["cash"]
+            booking_rows.append(Booking(
+                hotel_id=payload.hotel_id,
+                booking_date=payload.entry_date,
+                total_bookings=total,
+                paid_bookings=counts["paid"],
+                cash_bookings=counts["cash"],
+                platform_id=platform_id,
+                employee_id=employee_id,
+            ))
+
+        db.add_all(booking_rows)
+        db.add_all(revenue_rows)
+        db.add_all(review_rows)
+        db.commit()
+        for row in [*booking_rows, *revenue_rows, *review_rows]:
+            db.refresh(row)
+    except Exception:
+        db.rollback()
+        raise
+
+    for row in booking_rows:
+        await manager.broadcast({"type": "booking.created", "id": row.id})
+    for row in revenue_rows:
+        await manager.broadcast({"type": "revenue.created", "id": row.id})
+    for row in review_rows:
+        await manager.broadcast({"type": "review.created", "id": row.id})
+
+    return {
+        "message": "SMART_ENTRY_CREATED",
+        "hotel_id": payload.hotel_id,
+        "entry_date": payload.entry_date.isoformat(),
+        "reservations": len(payload.items),
+        "paid_bookings": sum(1 for item in payload.items if item.payment_status == "Paid"),
+        "cash_bookings": sum(1 for item in payload.items if item.payment_status == "Cash"),
+        "booking_records": len(booking_rows),
+        "revenue_records": len(revenue_rows),
+        "review_records": len(review_rows),
+        "total_actual_price": float(total_actual.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+        "total_net_revenue": float(total_net.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+        "booking_ids": [row.id for row in booking_rows],
+        "revenue_ids": [row.id for row in revenue_rows],
+        "review_ids": [row.id for row in review_rows],
+    }
 
 @app.get("/api/revenue")
 def list_revenue(start: date | None = None, end: date | None = None, hotel_id: int | None = None, employee_id: int | None = None, platform_id: int | None = None,

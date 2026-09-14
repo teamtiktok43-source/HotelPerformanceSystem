@@ -5,6 +5,7 @@ import NotificationsBell from './NotificationsBell'
 
 const items: [string, string][] = [
   ['/', 'الرئيسية'],
+  ['/smart-entry', 'الإدخال اليومي الذكي'],
   ['/bookings', 'الحجوزات اليومية'],
   ['/revenue', 'الإيرادات اليومية'],
   ['/platforms', 'المنصات'],
