@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
 from .models import Booking, Hotel, Platform, Revenue, Review, ReviewComment, ChatMessage, Notification, User, SystemLicense, ActivationKey
 from .schemas import (BookingCreate, BookingUpdate, EmployeeCreate, EmployeeUpdate, HotelCreate, HotelUpdate,
-                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, ReviewCommentCreate, PlatformCreate, PlatformUpdate, LicenseActivateRequest, SmartDailyEntryCreate, ChatMessageCreate)
+                      LoginRequest, RevenueCreate, RevenueUpdate, ReviewCreate, ReviewDecision, ReviewUpdate, ReviewCommentCreate, PlatformCreate, PlatformUpdate, LicenseActivateRequest, LicenseSettingsUpdate, SmartDailyEntryCreate, ChatMessageCreate)
 from .auth import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from .seed import seed_defaults
 from .websocket import manager
-from .license import SYSTEM_OWNER_USER_ID, DEFAULT_LICENSE_DAYS, generate_activation_key, get_license, hash_activation_key, is_license_active, is_owner, license_to_dict, utcnow, deactivate_license
+from .license import SYSTEM_OWNER_USER_ID, DEFAULT_LICENSE_DAYS, generate_activation_key, get_license, hash_activation_key, is_license_active, is_owner, license_to_dict, public_license_to_dict, utcnow, deactivate_license
 
 app = FastAPI(title="Hotel Performance System API", version="1.0.0")
 
@@ -27,6 +27,7 @@ def ensure_schema_updates():
         booking_columns = {c["name"] for c in inspector.get_columns("bookings")}
         review_columns = {c["name"] for c in inspector.get_columns("reviews")}
         notification_columns = {c["name"] for c in inspector.get_columns("notifications")}
+        license_columns = {c["name"] for c in inspector.get_columns("system_license")}
     except Exception:
         return
 
@@ -63,6 +64,14 @@ def ensure_schema_updates():
         add_column("reviews", "updated_at", f"updated_at {column_type('updated_at')}")
     if "chat_message_id" not in notification_columns:
         add_column("notifications", "chat_message_id", "chat_message_id INTEGER")
+    if "renewal_price" not in license_columns:
+        add_column("system_license", "renewal_price", "renewal_price NUMERIC(10, 2) NOT NULL DEFAULT 20.00")
+    if "renewal_currency" not in license_columns:
+        add_column("system_license", "renewal_currency", "renewal_currency VARCHAR(10) NOT NULL DEFAULT 'USD'")
+    if "suspension_title" not in license_columns:
+        add_column("system_license", "suspension_title", "suspension_title VARCHAR(160) NOT NULL DEFAULT 'Service Temporarily Suspended'")
+    if "suspension_message" not in license_columns:
+        add_column("system_license", "suspension_message", "suspension_message TEXT NOT NULL DEFAULT 'The Hotel Performance System subscription is currently inactive. Please contact the system administrator to restore access.'")
 
     if not statements:
         try:
@@ -230,10 +239,29 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 def me(user: User = Depends(get_current_user)):
     return user_to_dict(user)
 
+@app.get("/api/system/license/public")
+def public_system_license(db: Session = Depends(get_db)):
+    return public_license_to_dict(get_license(db))
+
+
 @app.get("/api/system/license")
 def system_license(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     license_row = get_license(db)
     return license_to_dict(license_row)
+
+
+@app.patch("/api/system/license/settings")
+def update_license_settings(payload: LicenseSettingsUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if not is_owner(user.id):
+        raise HTTPException(status_code=403, detail="System owner required")
+    license_row = get_license(db)
+    license_row.renewal_price = payload.renewal_price
+    license_row.renewal_currency = payload.renewal_currency.strip().upper()
+    license_row.suspension_title = payload.suspension_title.strip()
+    license_row.suspension_message = payload.suspension_message.strip()
+    db.commit()
+    db.refresh(license_row)
+    return {"message": "LICENSE_SETTINGS_UPDATED", "license": license_to_dict(license_row)}
 
 
 @app.post("/api/system/license/keys", status_code=201)

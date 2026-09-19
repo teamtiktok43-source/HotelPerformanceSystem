@@ -101,7 +101,28 @@ export type ChatConversation = {
   unread_count: number
 }
 
-export type LicenseInfo = { active: boolean; activated_at: string | null; expires_at: string | null; remaining_days: number; remaining_seconds: number; owner_user_id: number }
+export type PublicLicenseInfo = {
+  active: boolean
+  renewal_price: number
+  renewal_currency: string
+  suspension_title: string
+  suspension_message: string
+}
+
+export type LicenseInfo = PublicLicenseInfo & {
+  activated_at: string | null
+  expires_at: string | null
+  remaining_days: number
+  remaining_seconds: number
+  owner_user_id: number
+}
+
+export type LicenseSettings = {
+  renewal_price: number
+  renewal_currency: string
+  suspension_title: string
+  suspension_message: string
+}
 
 export type Notification = {
   id: number
@@ -138,7 +159,10 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   return d as T
 }
 
+export const getPublicLicense = () => apiFetch<PublicLicenseInfo>('/api/system/license/public')
 export const getLicense = () => apiFetch<LicenseInfo>('/api/system/license')
+export const updateLicenseSettings = (settings: LicenseSettings) =>
+  apiFetch<{ message: string; license: LicenseInfo }>('/api/system/license/settings', { method: 'PATCH', body: JSON.stringify(settings) })
 export const createLicenseKey = () => apiFetch<{ activation_key: string; created_at: string; duration_days: number }>('/api/system/license/keys', { method: 'POST' })
 export const activateLicense = (activationKey: string) => apiFetch<{ message: string; license: LicenseInfo }>('/api/system/license/activate', { method: 'POST', body: JSON.stringify({ activation_key: activationKey }) })
 export const deactivateLicense = () => apiFetch<{ message: string; license: LicenseInfo }>('/api/system/license/deactivate', { method: 'POST' })

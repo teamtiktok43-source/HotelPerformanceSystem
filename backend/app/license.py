@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,13 @@ from .models import ActivationKey, SystemLicense
 
 SYSTEM_OWNER_USER_ID = 1
 DEFAULT_LICENSE_DAYS = 30
+DEFAULT_RENEWAL_PRICE = Decimal("20.00")
+DEFAULT_RENEWAL_CURRENCY = "USD"
+DEFAULT_SUSPENSION_TITLE = "Service Temporarily Suspended"
+DEFAULT_SUSPENSION_MESSAGE = (
+    "The Hotel Performance System subscription is currently inactive. "
+    "Please contact the system administrator to restore access."
+)
 ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 
@@ -37,6 +45,10 @@ def get_license(db: Session) -> SystemLicense:
             id=1,
             activated_at=utcnow(),
             expires_at=utcnow() + timedelta(days=DEFAULT_LICENSE_DAYS),
+            renewal_price=DEFAULT_RENEWAL_PRICE,
+            renewal_currency=DEFAULT_RENEWAL_CURRENCY,
+            suspension_title=DEFAULT_SUSPENSION_TITLE,
+            suspension_message=DEFAULT_SUSPENSION_MESSAGE,
         )
         db.add(license_row)
         db.commit()
@@ -51,11 +63,23 @@ def is_license_active(license_row: SystemLicense, now: datetime | None = None) -
 
 def deactivate_license(db: Session) -> SystemLicense:
     license_row = get_license(db)
-    now = utcnow()
-    license_row.expires_at = now
+    license_row.expires_at = utcnow()
     db.commit()
     db.refresh(license_row)
     return license_row
+
+
+def _settings(license_row: SystemLicense) -> dict:
+    return {
+        "renewal_price": float(license_row.renewal_price or DEFAULT_RENEWAL_PRICE),
+        "renewal_currency": (license_row.renewal_currency or DEFAULT_RENEWAL_CURRENCY).upper(),
+        "suspension_title": license_row.suspension_title or DEFAULT_SUSPENSION_TITLE,
+        "suspension_message": license_row.suspension_message or DEFAULT_SUSPENSION_MESSAGE,
+    }
+
+
+def public_license_to_dict(license_row: SystemLicense) -> dict:
+    return {"active": is_license_active(license_row), **_settings(license_row)}
 
 
 def license_to_dict(license_row: SystemLicense) -> dict:
@@ -70,4 +94,5 @@ def license_to_dict(license_row: SystemLicense) -> dict:
         "remaining_days": remaining_days,
         "remaining_seconds": remaining_seconds,
         "owner_user_id": SYSTEM_OWNER_USER_ID,
+        **_settings(license_row),
     }

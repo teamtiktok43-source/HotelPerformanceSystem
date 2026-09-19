@@ -156,3 +156,10 @@ class ModelConfig(BaseModel):
 
 class LicenseActivateRequest(BaseModel):
     activation_key: str = Field(min_length=12, max_length=32)
+
+
+class LicenseSettingsUpdate(BaseModel):
+    renewal_price: Decimal = Field(ge=0.01, le=999999)
+    renewal_currency: str = Field(min_length=3, max_length=10)
+    suspension_title: str = Field(min_length=3, max_length=160)
+    suspension_message: str = Field(min_length=3, max_length=1000)

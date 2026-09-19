@@ -22,6 +22,10 @@ class SystemLicense(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    renewal_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("20.00"))
+    renewal_currency: Mapped[str] = mapped_column(String(10), default="USD")
+    suspension_title: Mapped[str] = mapped_column(String(160), default="Service Temporarily Suspended")
+    suspension_message: Mapped[str] = mapped_column(Text, default="The Hotel Performance System subscription is currently inactive. Please contact the system administrator to restore access.")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
